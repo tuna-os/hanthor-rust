@@ -1,5 +1,6 @@
 // engine.rs — Decks presentation engine.
 use std::path::Path;
+use std::path::Path;
 
 pub struct Deck { pub slides: Vec<Slide> }
 pub struct Slide { pub title: String, pub objects: Vec<SlideObject> }
@@ -10,3 +11,6 @@ impl Deck {
     pub fn add_slide(&mut self) { self.slides.push(Slide { title: format!("Slide {}", self.slides.len() + 1), objects: vec![] }); }
     pub fn delete_slide(&mut self, idx: usize) { if idx < self.slides.len() { self.slides.remove(idx); } }
 }
+
+pub fn read_pptx(path: &Path) -> Result<Deck, String> { Err(format!("ppt-rs read: {} — call ppt_rs::read", path.display())) }
+pub fn write_pptx(path: &Path, _deck: &Deck) -> Result<(), String> { Err(format!("ppt-rs write: {}", path.display())) }
