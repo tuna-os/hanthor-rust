@@ -19,3 +19,4 @@ mod tests {
     #[test] fn test_add_slide() { let mut d = Deck::new(); d.add_slide(); assert_eq!(d.slides.len(), 2); }
     #[test] fn test_delete_slide() { let mut d = Deck::new(); d.add_slide(); d.delete_slide(1); assert_eq!(d.slides.len(), 1); }
 }
+use std::path::Path;
