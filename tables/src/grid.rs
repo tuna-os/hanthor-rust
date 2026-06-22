@@ -62,10 +62,10 @@ impl CellGrid {
             for r in 0..visible_rows {
                 let data_row = r + oy as usize;
                 if data_row >= sheet.rows { break; }
-                for c in 0..visible_cols {
+                for c in 0..visible_cols { let cf = c as f64;
                     let data_col = c + ox as usize;
                     if data_col >= sheet.cols { break; }
-                    let x = HEADER_W + c as f64 * CELL_W;
+                    let x = HEADER_W + cf * CELL_W;
                     let y = (r + 1) as f64 * CELL_H;
 
                     // Selection highlight
@@ -94,11 +94,11 @@ impl CellGrid {
             cr.set_source_rgb(0.2, 0.2, 0.2);
             cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
             cr.set_font_size(12.0);
-            for c in 0..visible_cols {
+            for c in 0..visible_cols { let cf = c as f64;
                 let data_col = c + ox as usize;
                 if data_col >= 26 { break; }
                 let col_char = (b'A' + data_col as u8) as char;
-                let x = HEADER_W + c as f64 * CELL_W + CELL_W / 2.0 - 4.0;
+                let x = HEADER_W + cf * CELL_W + CELL_W / 2.0 - 4.0;
                 cr.move_to(x, CELL_H - 5.0);
                 cr.show_text(&col_char.to_string()).unwrap();
             }
