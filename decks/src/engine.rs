@@ -1,6 +1,4 @@
 // engine.rs — Decks presentation engine.
-use std::path::Path;
-use std::path::Path;
 
 pub struct Deck { pub slides: Vec<Slide> }
 pub struct Slide { pub title: String, pub objects: Vec<SlideObject> }

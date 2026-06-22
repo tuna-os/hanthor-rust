@@ -31,10 +31,10 @@ impl DecksWindow {
             cr.set_source_rgb(1.0, 1.0, 1.0); cr.paint().unwrap();
             cr.set_source_rgb(0.2, 0.2, 0.2);
             cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
-            cr.set_font_size(28.0);
+            cr.set_font_size(28.0_f64);
             let txt = "🎬 Slide canvas";
             let ext = cr.text_extents(txt).unwrap();
-            cr.move_to((w - ext.width()) / 2.0, h / 2.0);
+            cr.move_to(((w as f64 - ext.width())) / 2.0, (h as f64) / 2.0);
             cr.show_text(txt).unwrap();
         });
         canvas.set_hexpand(true); canvas.set_vexpand(true);
