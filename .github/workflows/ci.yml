@@ -14,6 +14,11 @@ jobs:
         run: |
           curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Set pkg-config path
+        run: |
+          export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig" >> $GITHUB_ENV
+          pkg-config --modversion gtk4
       - name: Build
         run: cargo build --release
       - name: Test
