@@ -1,0 +1,3 @@
+[workspace]
+members = ["suite-common", "tables", "decks", "letters"]
+resolver = "2"

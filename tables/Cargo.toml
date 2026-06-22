@@ -1,0 +1,11 @@
+[package]
+name = "tables"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+gtk4 = { version = "0.9", package = "gtk4" }
+libadwaita = "0.7"
+suite-common = { path = "../suite-common" }
+[[bin]]
+name = "tables"
+path = "src/main.rs"
