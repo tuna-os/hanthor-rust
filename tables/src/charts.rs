@@ -6,7 +6,7 @@ use cairo::{Context, Format, ImageSurface};
 pub enum ChartType { Bar, Line, Pie }
 
 pub fn render_chart(data: &[(String, f64)], chart_type: ChartType, width: i32, height: i32) -> Vec<u8> {
-    let surface = ImageSurface::create(Format::ARgb32, width, height).unwrap();
+    let mut surface = ImageSurface::create(Format::ARgb32, width, height).unwrap();
     let cr = Context::new(&surface).unwrap();
 
     // Background

@@ -54,6 +54,5 @@ impl DecksWindow {
 
 // Transitions will be wired via Gtk.Stack + slide animation callbacks
 // Present mode: Gtk.Window::fullscreen() + Gtk.Stack
-pub fn present(&self) {
     self.window.present();
 }
