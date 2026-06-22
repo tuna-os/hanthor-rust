@@ -11,3 +11,9 @@ fn main() {
     });
     app.run();
 }
+
+// Dark mode support
+fn init_dark_mode(app: &gtk4::Application) {
+    let style = libadwaita::StyleManager::default();
+    println!("Dark mode: {}", style.is_dark());
+}
