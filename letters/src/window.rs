@@ -725,7 +725,18 @@ impl LettersWindow {
                                         let path_str = path.to_string_lossy().to_string();
                                         let is_docx = path.extension().and_then(|e| e.to_str()).map(|e| e == "docx").unwrap_or(false);
                                         if is_docx {
-                                            let _ = crate::docx_bridge::write_buffer_to_docx(&path_str, &buf);
+                                            let config = crate::layout::LayoutConfig::from_settings(
+                                                &gtk4::gio::Settings::new("org.tunaos.letters-rust")
+                                            );
+                                            let ctx = gtk4::pango::Context::new();
+                                            let pages = crate::layout::paginate(&buf, &config, &ctx);
+                                            let text = buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string();
+                                            let page_breaks: Vec<usize> = pages.iter().skip(1).map(|p| {
+                                                text[..p.start_offset as usize].lines().count()
+                                            }).collect();
+                                            let _ = crate::docx_bridge::write_buffer_to_docx_with_layout(
+                                                &path_str, &buf, None, &page_breaks
+                                            );
                                         } else {
                                             let text = buf.text(&buf.start_iter(), &buf.end_iter(), false);
                                             let doc = crate::engine::Document::from_text(&text);
