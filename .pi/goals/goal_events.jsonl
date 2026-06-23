@@ -1,0 +1,3 @@
+{"type":"goal_created","goalId":"mqqi1jwm-5ohz96","objective":"Ship v1.0 of the hanthor-rust GTK4 office suite (Letters, Tables, Decks) as Flatpaks published to the tuna-os repo, with each app minimally viable per the agreed scope.","sisyphus":true,"autoContinue":true,"at":"2026-06-23T10:26:16.966Z"}
+{"type":"task_list_set","goalId":"mqqi1jwm-5ohz96","taskCount":7,"blockCompletion":false,"at":"2026-06-23T10:26:17.068Z"}
+{"type":"task_complete","goalId":"mqqi1jwm-5ohz96","taskId":"letters-polish","evidence":"Letters polish: auto-save (glib timer), spell-check toggle, page layout margins — all wired to GSettings","at":"2026-06-23T10:26:29.211Z"}
