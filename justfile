@@ -64,7 +64,29 @@ verify-letters: build
         cat "$log"; exit 1
     fi
 
-# ── Broadway daemon ────────────────────────────────────────────────────
+# ── Flatpak (for Broadway backend — GNOME SDK includes broadway GDK) ──
+
+flatpak-letters:
+    mkdir -p {{workspace}}/.flatpak-cache
+    flatpak run org.flatpak.Builder \
+        --force-clean --user --install --install-deps-from=flathub \
+        --disable-rofiles-fuse \
+        --state-dir={{workspace}}/.flatpak-cache/state \
+        --repo={{workspace}}/.flatpak-cache/repo \
+        {{workspace}}/.flatpak-cache/build flatpak/org.tunaos.letters-rust.json
+
+flatpak-letters-broadway: flatpak-letters broadway-start
+    @echo "Running Letters Flatpak via Broadway..."
+    flatpak run --env=GDK_BACKEND=broadway --env=BROADWAY_DISPLAY=:5 org.tunaos.letters-rust &>/tmp/letters-flatpak-broadway.log &
+    sleep 4
+    @echo "Letters Flatpak at http://localhost:8085"
+
+flatpak-letters-inspect: flatpak-letters-broadway
+    sleep 2
+    @echo "Running Playwright inspector via podman..."
+    podman run --rm --network=host --volume {{workspace}}:/workspace:ro \
+        mcr.microsoft.com/playwright/python:latest \
+        python3 /workspace/skills/broadway-inspect/broadway_inspect.py letters
 
 broadway-start:
     toolbox run --container {{toolbox}} pkill broadwayd 2>/dev/null || true; sleep 0.5
