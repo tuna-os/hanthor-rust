@@ -1,0 +1,142 @@
+name: Publish Flatpaks (Rust)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-tables:
+    name: Build Tables (Rust)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - run: flatpak install --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//24.08 || true
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: flatpak/org.tunaos.tables-rust.json
+          cache-key: flatpak-builder-tables-rust-${{ github.sha }}
+          build-bundle: false
+          upload-artifact: false
+      - run: flatpak build-bundle --oci --arch=x86_64 repo tables-rust.oci org.tunaos.tables-rust
+      - uses: actions/upload-artifact@v4
+        with: { name: tables-rust-oci, path: tables-rust.oci/, retention-days: 1 }
+
+  build-letters:
+    name: Build Letters (Rust)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - run: flatpak install --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//24.08 || true
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: flatpak/org.tunaos.letters-rust.json
+          cache-key: flatpak-builder-letters-rust-${{ github.sha }}
+          build-bundle: false
+          upload-artifact: false
+      - run: flatpak build-bundle --oci --arch=x86_64 repo letters-rust.oci org.tunaos.letters-rust
+      - uses: actions/upload-artifact@v4
+        with: { name: letters-rust-oci, path: letters-rust.oci/, retention-days: 1 }
+
+  build-decks:
+    name: Build Decks (Rust)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - run: flatpak install --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//24.08 || true
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: flatpak/org.tunaos.decks-rust.json
+          cache-key: flatpak-builder-decks-rust-${{ github.sha }}
+          build-bundle: false
+          upload-artifact: false
+      - run: flatpak build-bundle --oci --arch=x86_64 repo decks-rust.oci org.tunaos.decks-rust
+      - uses: actions/upload-artifact@v4
+        with: { name: decks-rust-oci, path: decks-rust.oci/, retention-days: 1 }
+
+  publish:
+    name: Publish to GHCR + gh-pages
+    needs: [build-tables, build-letters, build-decks]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with: { name: tables-rust-oci, path: tables-rust.oci }
+      - uses: actions/download-artifact@v4
+        with: { name: letters-rust-oci, path: letters-rust.oci }
+      - uses: actions/download-artifact@v4
+        with: { name: decks-rust-oci, path: decks-rust.oci }
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push OCI images to GHCR
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          for app in tables-rust letters-rust decks-rust; do
+            echo "Pushing ${app}..."
+            skopeo copy oci:${app}.oci docker://ghcr.io/${REPO_LOWER}:${app}
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              skopeo copy oci:${app}.oci docker://ghcr.io/${REPO_LOWER}:${app}-${{ github.ref_name }}
+            fi
+          done
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with: { ref: gh-pages, path: pages }
+        continue-on-error: true
+
+      - name: Update flatpak index
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          if [ ! -d "pages" ]; then
+            mkdir pages && cd pages && git init && git checkout -b gh-pages
+            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            cd ..
+          fi
+
+          for app in tables-rust letters-rust decks-rust; do
+            python3 scripts/update-index.py \
+              --oci-dir ${app}.oci \
+              --index-file pages/index/static \
+              --repo-name ${REPO_LOWER}
+          done
+
+          cat <<EOF > pages/hanthor-rust.flatpakrepo
+          [Flatpak Repo]
+          Title=TunaOS Flatpaks (Rust)
+          Url=oci+https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          Homepage=https://tunaos.org/office
+          Comment=TunaOS Rust Flatpak repository
+          Description=GNOME office suite — Tables, Letters, Decks (pure Rust, no WebKit)
+          Icon=https://avatars.githubusercontent.com/u/196050174
+          EOF
+
+      - name: Commit and push gh-pages
+        run: |
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index/static hanthor-rust.flatpakrepo
+          if git diff --cached --quiet; then
+            echo "No index changes"
+          else
+            git commit -m "chore(flatpak): update OCI index [skip ci]"
+            git push -u origin HEAD:gh-pages
+          fi
