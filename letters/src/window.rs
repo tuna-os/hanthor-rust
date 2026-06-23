@@ -1,5 +1,6 @@
 use gtk4 as gtk;
 use gtk::prelude::*;
+use gtk::gdk::Key;
 
 pub struct LettersWindow { window: gtk::ApplicationWindow, editor: gtk::TextView }
 
@@ -11,12 +12,9 @@ impl LettersWindow {
 
         let header = suite_common::make_header_bar();
         let toolbar = suite_common::make_toolbar();
-
-        // Style dropdown
-        let styles = gtk::DropDown::from_strings(&["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Code", "Quote"]);
+        let styles = gtk::DropDown::from_strings(&["Paragraph","Heading 1","Heading 2","Heading 3","Code","Quote"]);
         toolbar.append(&styles);
-        let table_btn = gtk::Button::with_label("Table");
-        toolbar.append(&table_btn);
+        toolbar.append(&gtk::Button::with_label("Table"));
 
         let notebook = gtk::Notebook::new();
         let tab1 = gtk::Label::new(Some("📄 Document 1"));
@@ -34,46 +32,32 @@ impl LettersWindow {
         c.append(&header); c.append(&m);
         win.set_child(Some(&c));
 
-        // ── Keyboard shortcuts ──────────────────────────────────
+        // Keyboard shortcuts
         let key = gtk::EventControllerKey::new();
         let editor_ref = editor.clone();
-        key.connect_key_pressed(move |_, keyval, keycode, state| {
+        key.connect_key_pressed(move |_, keyval, _keycode, state| {
             let ctrl = state.contains(gtk::gdk::ModifierType::CONTROL_MASK);
             let shift = state.contains(gtk::gdk::ModifierType::SHIFT_MASK);
             let alt = state.contains(gtk::gdk::ModifierType::ALT_MASK);
-
             if !ctrl && !alt { return gtk::glib::Propagation::Proceed; }
-
             let buf = editor_ref.buffer();
-            match (ctrl, shift, alt, keyval) {
-                // Bold / Italic / Underline
-                (true, false, false, 0x62) => toggle_tag(&buf, "bold"),        // Ctrl+B
-                (true, false, false, 0x69) => toggle_tag(&buf, "italic"),      // Ctrl+I
-                (true, false, false, 0x75) => toggle_tag(&buf, "underline"),   // Ctrl+U
-                // Alignment (Google Docs uses Ctrl+Shift+L/E/R/J)
-                (true, true, false, 0x6c) => apply_align(&buf, "left"),        // Ctrl+Shift+L
-                (true, true, false, 0x65) => apply_align(&buf, "center"),      // Ctrl+Shift+E
-                (true, true, false, 0x72) => apply_align(&buf, "right"),       // Ctrl+Shift+R
-                (true, true, false, 0x6a) => apply_align(&buf, "justify"),     // Ctrl+Shift+J
-                // Lists (Ctrl+Shift+7/8)
-                (true, true, false, 0x37) => insert_list(&buf, "bullet"),      // Ctrl+Shift+7
-                (true, true, false, 0x38) => insert_list(&buf, "number"),      // Ctrl+Shift+8
-                // Font size (Ctrl+Shift+. / Ctrl+Shift+,)
-                (true, true, false, 0x2e) => change_font_size(&buf, 2),       // Ctrl+Shift+.
-                (true, true, false, 0x2c) => change_font_size(&buf, -2),      // Ctrl+Shift+,
-                // Indent / Outdent (Ctrl+] / Ctrl+[)
-                (true, false, false, 0x5d) => change_indent(&buf, 20),        // Ctrl+]
-                (true, false, false, 0x5b) => change_indent(&buf, -20),       // Ctrl+[
-                // Heading styles (Ctrl+Alt+0-6)
-                (true, false, true, k) if (0x30..=0x36).contains(&k) => {
-                    let lvl = k - 0x30; apply_heading(&buf, lvl);
-                }
-                (true, false, false, 0x6b) => insert_link(&buf),              // Ctrl+K
-                (true, false, false, 0x66) => show_find(&editor_ref),          // Ctrl+F
-                (true, false, false, 0x68) => show_replace(&editor_ref),       // Ctrl+H
-                _ => return gtk::glib::Propagation::Proceed,
-            }
-            gtk::glib::Propagation::Stop
+
+            let handled = match (ctrl, shift, alt, keyval) {
+                (true, false, false, Key::B) | (true, false, false, Key::b) => { toggle_tag(&buf, "bold", 700, gtk::pango::Style::Normal); true }
+                (true, false, false, Key::I) | (true, false, false, Key::i) => { toggle_tag(&buf, "italic", 400, gtk::pango::Style::Italic); true }
+                (true, false, false, Key::U) | (true, false, false, Key::u) => { toggle_tag(&buf, "underline", 400, gtk::pango::Style::Normal); true }
+                (true, true, false, Key::L) | (true, true, false, Key::l) => { apply_align(&buf, gtk::Justification::Left); true }
+                (true, true, false, Key::E) | (true, true, false, Key::e) => { apply_align(&buf, gtk::Justification::Center); true }
+                (true, true, false, Key::R) | (true, true, false, Key::r) => { apply_align(&buf, gtk::Justification::Right); true }
+                (true, true, false, Key::J) | (true, true, false, Key::j) => { apply_align(&buf, gtk::Justification::Fill); true }
+                (true, true, false, Key::_7) => { insert_list(&buf, "• "); true }
+                (true, true, false, Key::_8) => { insert_list(&buf, "1. "); true }
+                (true, false, false, Key::bracketright) => { change_indent(&buf, true); true }
+                (true, false, false, Key::bracketleft) => { change_indent(&buf, false); true }
+                (true, false, false, Key::K) | (true, false, false, Key::k) => { insert_link(&buf); true }
+                _ => false,
+            };
+            if handled { gtk::glib::Propagation::Stop } else { gtk::glib::Propagation::Proceed }
         });
         editor.add_controller(key);
 
@@ -82,125 +66,63 @@ impl LettersWindow {
     pub fn present(&self) { self.window.present(); }
 }
 
-fn toggle_tag(buf: &gtk::TextBuffer, tag_name: &str) {
+fn toggle_tag(buf: &gtk::TextBuffer, tag_name: &str, weight: i32, style: gtk::pango::Style) {
     let tags = buf.tag_table();
-    let tag = tags.lookup(tag_name).unwrap_or_else(|| {
-        let t = gtk::TextTag::new(Some(tag_name));
-        match tag_name {
-            "bold" => t.set_weight(700),
-            "italic" => t.set_style(gtk::pango::Style::Italic),
-            "underline" => t.set_underline(gtk::pango::Underline::Single),
-            _ => {}
-        }
-        tags.add(&t);
-        t
-    });
-    if let Some(iter) = buf.selection_bounds() {
-        buf.apply_tag(&tag, &iter.0, &iter.1);
+    if let Some(tag) = tags.lookup(tag_name) {
+        tags.remove(&tag);
+        return;
+    }
+    let tag = gtk::TextTag::new(Some(tag_name));
+    tag.set_weight(weight);
+    tag.set_style(style);
+    if tag_name == "underline" { tag.set_underline(gtk::pango::Underline::Single); }
+    tags.add(&tag);
+    if let Some((start, end)) = buf.selection_bounds() {
+        buf.apply_tag(&tag, &start, &end);
     }
 }
 
-fn apply_align(buf: &gtk::TextBuffer, align: &str) {
-    let just = match align {
-        "left" => gtk::Justification::Left,
-        "center" => gtk::Justification::Center,
-        "right" => gtk::Justification::Right,
-        "justify" => gtk::Justification::Fill,
-        _ => return,
-    };
-    // Create a per-paragraph tag
-    let tag_name = format!("align-{}", align);
+fn apply_align(buf: &gtk::TextBuffer, just: gtk::Justification) {
+    let tag_name = "align";
     let tags = buf.tag_table();
-    let tag = tags.lookup(&tag_name).unwrap_or_else(|| {
-        let t = gtk::TextTag::new(Some(&tag_name));
-        t.set_justification(just);
-        tags.add(&t);
-        t
-    });
-    if let Some(iter) = buf.selection_bounds() {
-        buf.apply_tag(&tag, &iter.0, &iter.1);
+    // Remove old alignment
+    if let Some(old) = tags.lookup(tag_name) { tags.remove(&old); }
+    let tag = gtk::TextTag::new(Some(tag_name));
+    tag.set_justification(just);
+    tags.add(&tag);
+    if let Some((start, end)) = buf.selection_bounds() {
+        buf.apply_tag(&tag, &start, &end);
     }
 }
 
-fn insert_list(buf: &gtk::TextBuffer, list_type: &str) {
-    let prefix = if list_type == "bullet" { "• " } else { "1. " };
-    if let Some(iter) = buf.selection_bounds() {
-        let start = iter.0;
-        let mut text = start.slice(&iter.1).to_string();
-        text = text.lines().map(|l| format!("{}{}", prefix, l)).collect::<Vec<_>>().join("\n");
-        buf.delete(&start, &iter.1);
-        buf.insert(&start, &text);
+fn insert_list(buf: &gtk::TextBuffer, prefix: &str) {
+    if let Some((start, end)) = buf.selection_bounds() {
+        let text = start.slice(&end).to_string();
+        let new_text: String = text.lines().map(|l| format!("{}{}\n", prefix, l)).collect();
+        buf.delete(&start, &end);
+        buf.insert(&start, &new_text.trim_end());
     }
 }
 
-fn change_font_size(buf: &gtk::TextBuffer, delta: i32) {
-    let tag_name = format!("fs-{}", delta);
-    let tags = buf.tag_table();
-    let tag = tags.lookup(&tag_name).unwrap_or_else(|| {
-        let t = gtk::TextTag::new(Some(&tag_name));
-        t.set_scale(1.0 + delta as f64 * 0.1);
-        tags.add(&t);
-        t
-    });
-    if let Some(iter) = buf.selection_bounds() {
-        buf.apply_tag(&tag, &iter.0, &iter.1);
-    }
-}
-
-fn change_indent(buf: &gtk::TextBuffer, delta: i32) {
-    if let Some(iter) = buf.selection_bounds() {
-        let start = iter.0;
-        let mut text = start.slice(&iter.1).to_string();
-        if delta > 0 {
-            text = text.lines().map(|l| format!("\t{}", l)).collect::<Vec<_>>().join("\n");
+fn change_indent(buf: &gtk::TextBuffer, increase: bool) {
+    if let Some((start, end)) = buf.selection_bounds() {
+        let text = start.slice(&end).to_string();
+        let new_text: String = if increase {
+            text.lines().map(|l| format!("\t{}\n", l)).collect()
         } else {
-            text = text.lines().map(|l| l.strip_prefix('\t').unwrap_or(l).to_string()).collect::<Vec<_>>().join("\n");
-        }
-        buf.delete(&start, &iter.1);
-        buf.insert(&start, &text);
-    }
-}
-
-fn apply_heading(buf: &gtk::TextBuffer, level: u32) {
-    let tag_name = format!("heading-{}", level);
-    let tags = buf.tag_table();
-    let tag = tags.lookup(&tag_name).unwrap_or_else(|| {
-        let t = gtk::TextTag::new(Some(&tag_name));
-        if level == 0 {
-            t.set_weight(400);
-            t.set_scale(1.0);
-        } else {
-            t.set_weight(700);
-            t.set_scale(1.0 + (7 - level) as f64 * 0.15);
-        }
-        tags.add(&t);
-        t
-    });
-    if let Some(iter) = buf.selection_bounds() {
-        buf.apply_tag(&tag, &iter.0, &iter.1);
+            text.lines().map(|l| format!("{}\n", l.strip_prefix('\t').unwrap_or(l))).collect()
+        };
+        buf.delete(&start, &end);
+        buf.insert(&start, &new_text.trim_end());
     }
 }
 
 fn insert_link(buf: &gtk::TextBuffer) {
-    if let Some(iter) = buf.selection_bounds() {
-        let text = iter.0.slice(&iter.1).to_string();
-        let tag_name = format!("link-{}", text);
+    if let Some((start, end)) = buf.selection_bounds() {
+        let text = start.slice(&end).to_string();
+        let tag_name = "link";
         let tags = buf.tag_table();
-        let tag = tags.lookup(&tag_name).unwrap_or_else(|| {
-            let t = gtk::TextTag::new(Some(&tag_name));
-            t.set_underline(gtk::pango::Underline::Single);
-            tags.add(&t);
-            t
-        });
-        buf.apply_tag(&tag, &iter.0, &iter.1);
+        let tag = tags.lookup(tag_name).unwrap_or_else(|| { let t = gtk::TextTag::new(Some(tag_name)); t.set_underline(gtk::pango::Underline::Single); tags.add(&t); t });
+        buf.apply_tag(&tag, &start, &end);
     }
-}
-
-fn show_find(view: &gtk::TextView) {
-    // Stub: open a find dialog
-    println!("Find dialog (Ctrl+F) — not yet implemented");
-}
-
-fn show_replace(view: &gtk::TextView) {
-    println!("Replace dialog (Ctrl+H) — not yet implemented");
 }
