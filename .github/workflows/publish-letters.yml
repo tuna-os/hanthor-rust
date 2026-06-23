@@ -75,7 +75,7 @@ jobs:
           python3 .github/scripts/update-index.py \
             --oci-dir letters-rust.oci \
             --index-file index-repo/index/static \
-            --repo-name hanthor/letters-rust \
+            --repo-name tuna-os/letters-rust \
             --tags latest
           cd index-repo
           git config user.name "github-actions[bot]"

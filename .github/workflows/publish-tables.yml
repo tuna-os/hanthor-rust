@@ -75,7 +75,7 @@ jobs:
           python3 .github/scripts/update-index.py \
             --oci-dir tables-rust.oci \
             --index-file index-repo/index/static \
-            --repo-name hanthor/tables-rust \
+            --repo-name tuna-os/tables-rust \
             --tags latest
           cd index-repo
           git config user.name "github-actions[bot]"
