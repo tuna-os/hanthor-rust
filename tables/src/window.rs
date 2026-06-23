@@ -56,7 +56,8 @@ impl TablesWindow {
             let mut c = 0usize;
             while let Some(w) = node {
                 if let Ok(e) = w.clone().downcast::<gtk::Entry>() {
-                    e.set_text(if r == 0 { &((b'A' + c as u8) as char).to_string() } else { "" });
+                    let header = ((b'A' + c as u8) as char).to_string();
+                    e.set_text(if r == 0 { &header } else { "" });
                 }
                 node = w.next_sibling();
                 c += 1;
