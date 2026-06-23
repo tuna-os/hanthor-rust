@@ -70,6 +70,31 @@ fn make_doc_widget(settings: Option<&gio::Settings>) -> (PageContainer, gtk::Tex
     }
     scroll.set_parent(&container);
     container.set_vexpand(true); container.set_hexpand(true);
+    // Pagination: recalculate page count on buffer changes (debounced)
+    if let Some(s) = settings {
+        let s = s.clone();
+        let pc = container.clone();
+        let ed = editor.clone();
+        let timer = std::rc::Rc::new(std::cell::RefCell::new(None::<glib::SourceId>));
+        let t = timer.clone();
+        let b2 = buffer.clone();
+        buffer.connect_changed(move |_| {
+            if let Some(id) = t.borrow_mut().take() { id.remove(); }
+            let buf = b2.clone();
+            let pc = pc.clone();
+            let ed = ed.clone();
+            let s = s.clone();
+            let t2 = t.clone();
+            let id = glib::timeout_add_local(std::time::Duration::from_millis(500), move || {
+                let config = crate::layout::LayoutConfig::from_settings(&s);
+                let pages = crate::layout::paginate(&buf, &config, &ed.pango_context());
+                pc.set_page_count(pages.len());
+                t2.borrow_mut().take();
+                glib::ControlFlow::Break
+            });
+            *t.borrow_mut() = Some(id);
+        });
+    }
     (container, buffer)
 }
 

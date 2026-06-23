@@ -9,6 +9,7 @@ mod ruler;
 mod spell;
 mod docx_bridge;
 mod styles;
+mod layout;
 
 fn main() {
     let suite = suite_common::SuiteApp::new("org.tunaos.letters-rust");
