@@ -393,3 +393,44 @@ widget.add_controller(&source);
 - https://docs.gtk.org/gtk4/drag-and-drop.html
 - https://discourse.gnome.org/t/drag-dropping-files-with-gtk4/6084
 - https://docs.rs/gtk4/latest/gtk4/struct.DropTarget.html
+
+### 14. Marko Editor — Rust GTK4 WYSIWYG Markdown Editor
+
+**Repo:** `/tmp/marko-editor/` (cloned from https://github.com/mmMike/marko-editor)
+
+**Stack:** Rust + gtk4-rs + pulldown-cmark
+
+**Architecture:** The best reference we have for GtkTextBuffer + Markdown integration.
+
+| Module | What it does | Use for Letters |
+|--------|-------------|-----------------|
+| `textbuffermd.rs` | `assign_markdown()` — parses Markdown via pulldown-cmark and applies GtkTextTags. `to_markdown()` — walks buffer tags and generates Markdown | **Directly portable** — Markdown import/export |
+| `textbufferext.rs` | Cursor helpers, image/link tag creation, paragraph formatting, text move up/down | Link/image insertion pattern |
+| `texttag.rs` | Tag definitions (BOLD, ITALIC, H1-H6, CODE, MONO, STRIKE, LINK, IMAGE, colors) | Tag naming convention |
+| `texttagtable.rs` | Tag factory, `create_tag()`, `md_start_tag()`/`md_end_tag()` for Markdown ↔ tag mapping | Tag↔Markdown mapping table |
+| `textview.rs` | Main editor widget with key handlers, undo/redo, autocomplete, search | Full editor integration pattern |
+| `textviewext.rs` | TextView helpers (scroll, insert, etc.) | Scrolling helpers |
+
+**Key insight from `textbuffermd.rs::insert_markdown()`:**
+```rust
+fn insert_markdown(&self, iter: &mut gtk::TextIter, markdown: &str) {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    let parser = Parser::new_ext(markdown, options);
+    let pos_start = iter.offset();
+    for event in parser {
+        match event {
+            Event::Start(CTag::Heading(_)) => pos_heading = iter.offset(),
+            Event::End(CTag::Heading(level)) => {
+                let tag = match level { 1 => Tag::H1, ... };
+                self.apply_tag_offset(iter, tag, pos_heading);
+            }
+            Event::Text(text) => { self.insert(iter, text.as_ref()); }
+        }
+    }
+}
+```
+
+**NOTE:** Marko Editor does NOT implement live markdown macros (`**bold**` → bold as you type).
+Formatting is done via keyboard shortcuts (Ctrl+B, Ctrl+I) and toolbar buttons.
+The `insert-text` signal auto-formatting would need to be implemented on top of this.
