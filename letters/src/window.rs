@@ -168,16 +168,27 @@ impl LettersWindow {
         // ── Actions ────────────────────────────────────────────────
         Self::register_actions(&tab_view, &stack, &word_count_label, &win, app);
 
-        // Placeholder formatting actions
-        for name in &["strikethrough","highlight","indent","outdent","insertimage","insertlink",
-            "insertlist","insert-table","increase-font","decrease-font","find","replace",
-            "align-left","align-center","align-right","align-justify"] {
-            let a = gtk::gio::SimpleAction::new(name, None);
-            a.connect_activate(|_,_|{}); app.add_action(&a);
+        // ── Formatting actions ────────────────────────────────────
+        Self::register_formatting_actions(&tab_view, app);
+
+        // Undo/Redo (GtkTextBuffer built-in)
+        {
+            let tv = tab_view.clone();
+            let a = gtk::gio::SimpleAction::new("undo", None);
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) { buf.undo(); }
+            });
+            app.add_action(&a);
+            app.set_accels_for_action("app.undo", &["<Primary>z"]);
         }
-        for name in &["style_p","style_h1","style_h2","style_h3","style_h4","style_h5","style_h6","style_code","style_quote"] {
-            let a = gtk::gio::SimpleAction::new(name, None);
-            a.connect_activate(|_,_|{}); app.add_action(&a);
+        {
+            let tv = tab_view.clone();
+            let a = gtk::gio::SimpleAction::new("redo", None);
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) { buf.redo(); }
+            });
+            app.add_action(&a);
+            app.set_accels_for_action("app.redo", &["<Primary>y", "<Primary><Shift>z"]);
         }
 
         LettersWindow { window: suite_win.window, tab_view, stack, word_count_label }
@@ -294,6 +305,169 @@ impl LettersWindow {
     }
 }
 
+// ── Active buffer helper ─────────────────────────────────────────────
+
+fn active_buffer(tv: &adw::TabView) -> Option<gtk::TextBuffer> {
+    tv.selected_page().and_then(|p| {
+        p.child().first_child()
+            .and_then(|c| c.downcast::<gtk::TextView>().ok())
+            .map(|tv| tv.buffer())
+    })
+}
+
+/// Apply a named GtkTextTag to the current selection or cursor position.
+fn apply_tag_to_active(tv: &adw::TabView, tag_name: &str) {
+    if let Some(buf) = active_buffer(tv) {
+        if let Some(tag) = buf.tag_table().lookup(tag_name) {
+            let sel = buf.selection_bounds();
+            if let Some((start, end)) = sel {
+                buf.apply_tag(&tag, &start, &end);
+            }
+        }
+    }
+}
+
+/// Toggle a named GtkTextTag on the current selection.
+fn toggle_tag(tv: &adw::TabView, tag_name: &str) {
+    if let Some(buf) = active_buffer(tv) {
+        if let Some(tag) = buf.tag_table().lookup(tag_name) {
+            let sel = buf.selection_bounds();
+            if let Some((start, end)) = sel {
+                // Get all tags at the start of the selection and check if ours is present
+                let tags_at_cursor = start.tags();
+                let has = tags_at_cursor.iter().any(|t| t.name().as_deref() == Some(tag_name));
+                if has {
+                    buf.remove_tag(&tag, &start, &end);
+                } else {
+                    buf.apply_tag(&tag, &start, &end);
+                }
+            }
+        }
+    }
+}
+
+// ── Formatting action handlers ────────────────────────────────────────
+
+fn toggle_inline_bold(tv: &adw::TabView)  { toggle_tag(tv, "bold"); }
+fn toggle_inline_italic(tv: &adw::TabView) { toggle_tag(tv, "italic"); }
+fn toggle_inline_underline(tv: &adw::TabView) { toggle_tag(tv, "underline"); }
+fn toggle_inline_strikethrough(tv: &adw::TabView) { toggle_tag(tv, "strikethrough"); }
+fn toggle_highlight(tv: &adw::TabView) { toggle_tag(tv, "highlight"); }
+
+impl LettersWindow {
+    fn register_formatting_actions(tv: &adw::TabView, app: &adw::Application) {
+        // Inline formatting
+        let pairs: &[(&str, fn(&adw::TabView))] = &[
+            ("bold", toggle_inline_bold),
+            ("italic", toggle_inline_italic),
+            ("underline", toggle_inline_underline),
+            ("strikethrough", toggle_inline_strikethrough),
+            ("highlight", toggle_highlight),
+        ];
+        for (name, handler) in pairs {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new(name, None);
+            a.connect_activate(move |_, _| handler(&tv));
+            app.add_action(&a);
+        }
+
+        // Shortcuts for B/I/U
+        app.set_accels_for_action("app.bold", &["<Primary>b"]);
+        app.set_accels_for_action("app.italic", &["<Primary>i"]);
+        app.set_accels_for_action("app.underline", &["<Primary>u"]);
+
+        // Alignment
+        let align_names: &[&str] = &["align-left", "align-center", "align-right", "align-justify"];
+        for name in align_names {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new(name, None);
+            let name = *name;
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) {
+                    // Get cursor position from selection bounds
+                    let bounds = buf.selection_bounds();
+                    let (anchor, _) = bounds.unwrap_or_else(|| {
+                        (buf.start_iter(), buf.start_iter())
+                    });
+                    let mut line_start = anchor.clone();
+                    line_start.backward_line();
+                    let mut line_end = anchor.clone();
+                    line_end.forward_line();
+                    // Remove all alignment tags from this line first
+                    for an in &["align-left", "align-center", "align-right", "align-justify"] {
+                        if let Some(at) = buf.tag_table().lookup(an) {
+                            buf.remove_tag(&at, &line_start, &line_end);
+                        }
+                    }
+                    // Apply the requested alignment
+                    if let Some(tag) = buf.tag_table().lookup(name) {
+                        buf.apply_tag(&tag, &line_start, &line_end);
+                    }
+                }
+            });
+            app.add_action(&a);
+        }
+        app.set_accels_for_action("app.align-left", &["<Primary>l"]);
+        app.set_accels_for_action("app.align-center", &["<Primary>e"]);
+        app.set_accels_for_action("app.align-right", &["<Primary>r"]);
+        app.set_accels_for_action("app.align-justify", &["<Primary>j"]);
+
+        // Font size
+        {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new("increase-font", None);
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) {
+                    // Apply a larger scale tag
+                    if let Some(tag) = buf.tag_table().lookup("font-larger") {
+                        let sel = buf.selection_bounds();
+                        if let Some((start, end)) = sel {
+                            buf.apply_tag(&tag, &start, &end);
+                        }
+                    }
+                }
+            });
+            app.add_action(&a);
+        }
+        {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new("decrease-font", None);
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) {
+                    if let Some(tag) = buf.tag_table().lookup("font-smaller") {
+                        let sel = buf.selection_bounds();
+                        if let Some((start, end)) = sel {
+                            buf.apply_tag(&tag, &start, &end);
+                        }
+                    }
+                }
+            });
+            app.add_action(&a);
+        }
+        app.set_accels_for_action("app.increase-font", &["<Primary><Shift>greater"]);
+        app.set_accels_for_action("app.decrease-font", &["<Primary><Shift>less"]);
+
+        // Styles
+        let styles: &[(&str, &str)] = &[
+            ("style_p", ""),
+            ("style_h1", "h1"), ("style_h2", "h2"), ("style_h3", "h3"),
+            ("style_h4", "h4"), ("style_h5", "h5"), ("style_h6", "h6"),
+            ("style_code", "code"), ("style_quote", "blockquote"),
+        ];
+        for (action_name, tag_name) in styles {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new(action_name, None);
+            let tag_name = *tag_name;
+            a.connect_activate(move |_, _| {
+                if !tag_name.is_empty() {
+                    apply_tag_to_active(&tv, tag_name);
+                }
+            });
+            app.add_action(&a);
+        }
+    }
+}
+
 // ── Save logic ───────────────────────────────────────────────────────
 
 fn do_save(tv: &adw::TabView, _stack: &gtk4::Stack) {
@@ -355,4 +529,12 @@ pub fn register_formatting_tags(buffer: &gtk::TextBuffer) {
     add!(gtk::TextTag::builder().name("h6").scale(0.67).weight(700).build());
     add!(gtk::TextTag::builder().name("code").family("Monospace").background("#F0F0F0").foreground("#333333").build());
     add!(gtk::TextTag::builder().name("blockquote").left_margin(40).style(gtk4::pango::Style::Italic).foreground("#666666").build());
+    // Alignment tags
+    add!(gtk::TextTag::builder().name("align-left").justification(gtk::Justification::Left).build());
+    add!(gtk::TextTag::builder().name("align-center").justification(gtk::Justification::Center).build());
+    add!(gtk::TextTag::builder().name("align-right").justification(gtk::Justification::Right).build());
+    add!(gtk::TextTag::builder().name("align-justify").justification(gtk::Justification::Fill).build());
+    // Font size tags
+    add!(gtk::TextTag::builder().name("font-larger").scale(1.2).build());
+    add!(gtk::TextTag::builder().name("font-smaller").scale(0.833).build());
 }
