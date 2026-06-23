@@ -78,3 +78,5 @@
 {"type":"task_complete","goalId":"mqqw2n3v-ho4w1q","taskId":"layout-engine","at":"2026-06-23T17:00:20.195Z"}
 {"type":"task_complete","goalId":"mqqw2n3v-ho4w1q","taskId":"page-breaks","at":"2026-06-23T17:04:11.185Z"}
 {"type":"task_complete","goalId":"mqqw2n3v-ho4w1q","taskId":"headers-footers","at":"2026-06-23T17:05:34.121Z"}
+{"type":"task_complete","goalId":"mqqw2n3v-ho4w1q","taskId":"print-preview","at":"2026-06-23T17:08:29.730Z"}
+{"type":"task_complete","goalId":"mqqw2n3v-ho4w1q","taskId":"docx-layout-roundtrip","at":"2026-06-23T17:09:48.219Z"}

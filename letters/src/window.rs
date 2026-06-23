@@ -420,6 +420,22 @@ impl LettersWindow {
             app.set_accels_for_action("app.print", &["<Primary>p"]);
         }
 
+        // ── Print Preview action ──────────────────────────────────
+        {
+            let tv = tab_view.clone();
+            let w = win.clone();
+            let s = settings.clone();
+            let a = gtk::gio::SimpleAction::new("print-preview", None);
+            a.connect_activate(move |_, _| {
+                let buf = active_buffer(&tv);
+                if let Some(buf) = buf {
+                    crate::print_preview::show_print_preview(&w, &buf, &s);
+                }
+            });
+            app.add_action(&a);
+            app.set_accels_for_action("app.print-preview", &["<Primary><Shift>p"]);
+        }
+
         // ── Formatting actions ────────────────────────────────────
         Self::register_formatting_actions(&tab_view, app);
 

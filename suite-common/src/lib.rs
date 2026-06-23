@@ -403,6 +403,7 @@ pub fn make_header_bar() -> adw::HeaderBar {
     file_section.append(Some("_Save"), Some("app.save"));
     file_section.append(Some("Save _As\u{2026}"), Some("app.save-as"));
     file_section.append(Some("Page Set_up\u{2026}"), Some("app.page-setup"));
+    file_section.append(Some("Print Pre_view\u{2026}"), Some("app.print-preview"));
     file_section.append(Some("_Print\u{2026}"), Some("app.print"));
     menu.append_section(Some("File"), &file_section);
 

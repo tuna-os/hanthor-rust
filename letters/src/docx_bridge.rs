@@ -63,33 +63,32 @@ pub fn read_docx_to_buffer(path: &str, buf: &gtk::TextBuffer) -> Result<(), Stri
     Ok(())
 }
 
-/// Write a GtkTextBuffer to a .docx file, preserving formatting and styles.
-/// If `source_doc_path` is Some, copies styles.xml from that document.
+/// Write a GtkTextBuffer to a .docx file (plain text, no layout).
 pub fn write_buffer_to_docx(path: &str, buf: &gtk::TextBuffer) -> Result<(), String> {
-    write_buffer_to_docx_inner(path, buf, None)
+    write_buffer_to_docx_with_layout(path, buf, None, &[])
 }
 
 /// Write with style preservation from an existing .docx file.
 pub fn write_buffer_to_docx_preserving_styles(path: &str, buf: &gtk::TextBuffer, source_path: &str) -> Result<(), String> {
-    write_buffer_to_docx_inner(path, buf, Some(source_path))
+    write_buffer_to_docx_with_layout(path, buf, Some(source_path), &[])
 }
-
-fn write_buffer_to_docx_inner(path: &str, buf: &gtk::TextBuffer, source_path: Option<&str>) -> Result<(), String> {
+pub fn write_buffer_to_docx_with_layout(
+    path: &str,
+    buf: &gtk::TextBuffer,
+    source_path: Option<&str>,
+    page_break_indices: &[usize],
+) -> Result<(), String> {
     let mut doc = if let Some(src) = source_path {
-        // Open existing doc to preserve styles and metadata
         rdocx::Document::open(src).unwrap_or_else(|_| rdocx::Document::new())
     } else {
         rdocx::Document::new()
     };
 
-    // Clear existing paragraphs (we'll rebuild from buffer)
-    while doc.paragraph_count() > 0 {
-        doc.remove_content(0);
-    }
+    while doc.paragraph_count() > 0 { doc.remove_content(0); }
 
     let text = buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string();
     let paragraphs = split_paragraphs(buf, &text);
-    for para in &paragraphs {
+    for (para_idx, para) in paragraphs.iter().enumerate() {
         let effective_text = para.text.clone();
         let style_id = para.style_id.clone();
         if effective_text.is_empty() && style_id.is_empty() { continue; }
@@ -97,9 +96,8 @@ fn write_buffer_to_docx_inner(path: &str, buf: &gtk::TextBuffer, source_path: Op
         let runs = split_runs_from_buffer(buf, para.offset, &effective_text);
         let has_formatting = runs.iter().any(|r| r.bold || r.italic || r.strike || r.underline);
 
-        if !has_formatting {
-            let mut p = doc.add_paragraph(&effective_text);
-            if !style_id.is_empty() { p = p.style(&style_id); }
+        let mut p = if !has_formatting {
+            doc.add_paragraph(&effective_text)
         } else {
             let mut p = doc.add_paragraph("");
             if !style_id.is_empty() { p = p.style(&style_id); }
@@ -110,12 +108,19 @@ fn write_buffer_to_docx_inner(path: &str, buf: &gtk::TextBuffer, source_path: Op
                 if run.strike { r = r.strike(true); }
                 if run.underline { r = r.underline(true); }
             }
+            p
+        };
+
+        if !style_id.is_empty() && !has_formatting { p = p.style(&style_id); }
+
+        // Add page break before this paragraph if it's at a page boundary
+        if page_break_indices.contains(&para_idx) && para_idx > 0 {
+            p = p.page_break_before(true);
         }
     }
 
     doc.save(path).map_err(|e| format!("Failed to save {}: {}", path, e))
 }
-
 // ── Paragraph representation ──────────────────────────────────────────
 
 struct ParaInfo {
