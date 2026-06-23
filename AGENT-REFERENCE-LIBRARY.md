@@ -333,3 +333,63 @@ However, the **Markdown parsing and block-model architecture** is useful:
 `/tmp/velotype/src/components/block/runtime/table.rs` has table creation + cell navigation logic.
 
 **Note:** Velotype's AST-based approach (parse markdown → block tree → render) is more sophisticated than what we need for Phase 1-2. It's a v2/v3 target for a more powerful Letters engine.
+
+### 13. GTK4 Drag-and-Drop for Files and Images
+
+GTK4 has a clean drag-and-drop API using `GtkDropTarget` and `GtkDragSource`.
+
+**Single file drop** (from Nautilus, desktop, etc.):
+```rust
+let drop = gtk::DropTarget::new(
+    gio::File::static_type(),   // GType for single file
+    gdk::DragAction::COPY,
+);
+drop.connect_drop(|_target, value, _x, _y| {
+    // value.get() returns Result<T, glib::BoolError>
+    if let Ok(file) = value.get::<gio::File>() {
+        if let Some(path) = file.path() {
+            // Handle dropped file at path
+            println!("Dropped file: {}", path.display());
+        }
+    }
+    true  // return true to accept the drop
+});
+widget.add_controller(&drop);
+```
+
+**Multiple file drop** — use `glib::List` of `gio::File`:
+```rust
+// Use the GType for a GList of Gio.File
+let drop = gtk::DropTarget::new(
+    glib::List::<gio::File>::static_type(),
+    gdk::DragAction::COPY,
+);
+drop.connect_drop(|_target, value, _x, _y| {
+    if let Ok(files) = value.get::<glib::List<gio::File>>() {
+        for file in files.iter() {
+            if let Some(path) = file.path() {
+                // Handle each dropped file
+            }
+        }
+    }
+    true
+});
+widget.add_controller(&drop);
+```
+
+**Image-specific:** Set the drop target on the GtkTextView (for Letters) or GtkDrawingArea (for Decks). On drop, insert the image at cursor or at the drop position.
+
+**File drag OUT** (from app to file manager) — use `GtkDragSource`:
+```rust
+let source = gtk::DragSource::new();
+source.connect_prepare(move |_source, _x, _y| {
+    let file = gio::File::for_path("/path/to/file");
+    Some(gdk::ContentProvider::for_value(&file))
+});
+widget.add_controller(&source);
+```
+
+**Reference URLs:**
+- https://docs.gtk.org/gtk4/drag-and-drop.html
+- https://discourse.gnome.org/t/drag-dropping-files-with-gtk4/6084
+- https://docs.rs/gtk4/latest/gtk4/struct.DropTarget.html

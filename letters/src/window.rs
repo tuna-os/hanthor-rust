@@ -26,6 +26,7 @@ fn make_doc_widget() -> (gtk::ScrolledWindow, gtk::TextBuffer) {
     let buffer = gtk::TextBuffer::new(None);
     register_formatting_tags(&buffer);
     let editor = gtk::TextView::with_buffer(&buffer);
+    connect_list_continuation(&editor, &buffer);
     editor.set_wrap_mode(gtk::WrapMode::Word);
     editor.set_left_margin(24); editor.set_right_margin(24);
     editor.set_top_margin(16); editor.set_bottom_margin(16);
@@ -392,6 +393,22 @@ impl LettersWindow {
         app.set_accels_for_action("app.bold", &["<Primary>b"]);
         app.set_accels_for_action("app.italic", &["<Primary>i"]);
         app.set_accels_for_action("app.underline", &["<Primary>u"]);
+
+        // Lists
+        {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new("bullet-list", None);
+            a.connect_activate(move |_, _| { toggle_list(&tv, "bullet"); });
+            app.add_action(&a);
+        }
+        {
+            let tv = tv.clone();
+            let a = gtk::gio::SimpleAction::new("numbered-list", None);
+            a.connect_activate(move |_, _| { toggle_list(&tv, "numbered"); });
+            app.add_action(&a);
+        }
+        app.set_accels_for_action("app.bullet-list", &["<Primary><Shift>8"]);
+        app.set_accels_for_action("app.numbered-list", &["<Primary><Shift>7"]);
 
         // Alignment
         let align_names: &[&str] = &["align-left", "align-center", "align-right", "align-justify"];
@@ -849,4 +866,106 @@ pub fn register_formatting_tags(buffer: &gtk::TextBuffer) {
     // Search highlight tags
     add!(gtk::TextTag::builder().name("search-match").background("#FFFF00").build());
     add!(gtk::TextTag::builder().name("search-current").background("#FF9800").build());
+}
+
+// ── List helpers ─────────────────────────────────────────────────────
+
+fn line_text(buf: &gtk::TextBuffer, iter: &gtk::TextIter) -> String {
+    let mut start = iter.clone();
+    start.backward_line();
+    let mut end = iter.clone();
+    end.forward_line();
+    buf.text(&start, &end, false).to_string()
+}
+
+fn toggle_list(tv: &adw::TabView, kind: &str) {
+    if let Some(buf) = active_buffer(tv) {
+        let bounds = buf.selection_bounds();
+        let (ins, _) = bounds.unwrap_or((buf.start_iter(), buf.start_iter()));
+        let text = line_text(&buf, &ins);
+        // Check if already a list item
+        let has_bullet = text.trim_start().starts_with('\u{2022}')
+            || text.trim_start().starts_with("- ");
+        let has_number = text.trim_start().starts_with(|c: char| c.is_ascii_digit())
+            && text.trim_start().contains(". ");
+
+        buf.begin_user_action();
+        let mut start = ins.clone(); start.backward_line();
+        let mut end = ins.clone(); end.forward_line();
+
+        if (kind == "bullet" && has_bullet) || (kind == "numbered" && has_number) {
+            // Remove list prefix - delete from line start to after prefix
+            let line = line_text(&buf, &ins);
+            let trimmed = line.trim_start();
+            let prefix_end = if kind == "bullet" {
+                trimmed.find(|c| c != '\u{2022}' && c != ' ').unwrap_or(0)
+            } else {
+                trimmed.find(". ").map(|i| i + 2).unwrap_or(0)
+            };
+            let indent = line.len() - trimmed.len();
+            let del_len = indent + prefix_end;
+            if del_len > 0 {
+                let mut del_end = start.clone();
+                del_end.forward_chars(del_len as i32);
+                if del_end > start { buf.delete(&mut start, &mut del_end); }
+            }
+        } else {
+            // Insert list prefix
+            let prefix = if kind == "bullet" { "\u{2022} " } else { "1. " };
+            buf.insert(&mut start, prefix);
+        }
+        buf.end_user_action();
+    }
+}
+
+/// Connect list auto-continuation on Enter for a new buffer.
+/// Uses EventControllerKey on the TextView to detect Enter.
+fn connect_list_continuation(editor: &gtk::TextView, buf: &gtk::TextBuffer) {
+    let buf = buf.clone();
+    let ctrl = gtk::EventControllerKey::new();
+    ctrl.connect_key_pressed(move |_, key, _code, _state| {
+        if key == gtk::gdk::Key::Return || key == gtk::gdk::Key::KP_Enter {
+            let bounds = buf.selection_bounds();
+            let (ins, _) = bounds.unwrap_or((buf.start_iter(), buf.start_iter()));
+            let mut line_start = ins.clone();
+            line_start.backward_line();
+            let mut line_end = ins.clone();
+            line_end.forward_line();
+            let line = buf.text(&line_start, &line_end, false);
+            let trimmed = line.trim_start();
+
+            // Bullet list continuation
+            if trimmed.starts_with("\u{2022}") || trimmed.starts_with("- ") {
+                let indent = line.len() - trimmed.len();
+                let marker = "\u{2022} ";
+                let after_marker = trimmed
+                    .strip_prefix("\u{2022}").or_else(|| trimmed.strip_prefix("- "))
+                    .unwrap_or("").trim_start();
+                if after_marker.is_empty() {
+                    return glib::Propagation::Proceed;
+                }
+                let prefix = format!("{}{}", " ".repeat(indent), marker);
+                buf.insert(&mut line_end, &prefix);
+                return glib::Propagation::Stop;
+            }
+
+            // Numbered list continuation
+            if trimmed.starts_with(|c: char| c.is_ascii_digit()) && trimmed.contains(". ") {
+                let num_str: String = trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+                let after_num = &trimmed[num_str.len()..];
+                let rest = after_num.strip_prefix(". ").unwrap_or("");
+                if let Ok(n) = num_str.parse::<usize>() {
+                    if rest.is_empty() {
+                        return glib::Propagation::Proceed;
+                    }
+                    let indent = line.len() - trimmed.len();
+                    let new_prefix = format!("{}{}. ", " ".repeat(indent), n + 1);
+                    buf.insert(&mut line_end, &new_prefix);
+                    return glib::Propagation::Stop;
+                }
+            }
+        }
+        glib::Propagation::Proceed
+    });
+    editor.add_controller(ctrl);
 }
