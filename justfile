@@ -77,9 +77,11 @@ flatpak-letters:
 
 flatpak-letters-broadway: flatpak-letters broadway-start
     @echo "Running Letters Flatpak via Broadway..."
-    flatpak run --env=GDK_BACKEND=broadway --env=BROADWAY_DISPLAY=:5 org.tunaos.letters-rust &>/tmp/letters-flatpak-broadway.log &
+    flatpak run --filesystem=/run/user/1000 \
+        --env=GDK_BACKEND=broadway --env=BROADWAY_DISPLAY=:5 \
+        org.tunaos.letters-rust &>/tmp/letters-flatpak-broadway.log &
     sleep 4
-    @echo "Letters Flatpak at http://localhost:8085"
+    @echo "Letters Flatpak at http://localhost:8084"
 
 flatpak-letters-inspect: flatpak-letters-broadway
     sleep 2
