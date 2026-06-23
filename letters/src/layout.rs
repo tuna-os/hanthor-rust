@@ -27,6 +27,7 @@ pub struct LayoutConfig {
     pub margin_bottom: f64,
     pub margin_left: f64,
     pub margin_right: f64,
+    pub column_count: u32,
 }
 
 impl Default for LayoutConfig {
@@ -38,6 +39,7 @@ impl Default for LayoutConfig {
             margin_bottom: 72.0,
             margin_left: 72.0,
             margin_right: 72.0,
+            column_count: 1,
         }
     }
 }
@@ -51,6 +53,7 @@ impl LayoutConfig {
             margin_bottom: settings.double("page-margin-bottom").max(0.0),
             margin_left: settings.double("page-margin-left").max(0.0),
             margin_right: settings.double("page-margin-right").max(0.0),
+            column_count: settings.int("column-count").max(1) as u32,
         }
     }
 
@@ -59,7 +62,8 @@ impl LayoutConfig {
     }
 
     pub fn content_width(&self) -> f64 {
-        (self.page_width_pt - self.margin_left - self.margin_right).max(10.0)
+        let total = (self.page_width_pt - self.margin_left - self.margin_right).max(10.0);
+        (total / self.column_count.max(1) as f64).max(10.0)
     }
 }
 

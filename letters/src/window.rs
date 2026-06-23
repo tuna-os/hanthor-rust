@@ -73,14 +73,19 @@ fn make_doc_widget(settings: Option<&gio::Settings>) -> (PageContainer, gtk::Tex
     // Zoom via Ctrl+Scroll
     {
         let pc = container.clone();
+        let s = settings.cloned();
         let scroll_ctrl = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
-        scroll_ctrl.connect_scroll(move |_ctrl, _dx, dy| {
-            let modifiers = gtk4::gdk::ModifierType::CONTROL_MASK;
-            // Check if Ctrl is held (approximate — gtk4-rs 0.11 doesn't expose get_current_event_state on scroll)
-            // Simple approach: always zoom on scroll since we're in a text editor
+        scroll_ctrl.connect_scroll(move |ctrl, _dx, dy| {
+            // Check if Ctrl is held
+            let state = ctrl.current_event_state();
+            if !state.contains(gtk4::gdk::ModifierType::CONTROL_MASK) {
+                return glib::Propagation::Proceed;
+            }
             let current = pc.zoom_level();
             let delta = if dy > 0.0 { -10.0 } else { 10.0 };
-            pc.set_zoom(current + delta);
+            let new_zoom = (current + delta).clamp(50.0, 200.0);
+            pc.set_zoom(new_zoom);
+            if let Some(ref s) = s { let _ = s.set_double("zoom-level", new_zoom); }
             glib::Propagation::Stop
         });
         editor.add_controller(scroll_ctrl);
@@ -158,6 +163,23 @@ impl LettersWindow {
         let zoom_label = gtk4::Label::new(Some("100%"));
         status_bar.append(&zoom_label);
         status_bar.append(&zoom_slider);
+        // Wire zoom slider to update all PageContainers
+        {
+            let tv = tab_view.clone();
+            let zl = zoom_label.clone();
+            zoom_slider.connect_value_changed(move |slider| {
+                let val = slider.value();
+                zl.set_text(&format!("{}%", val as i32));
+                for i in 0..tv.n_pages() {
+                    let page = tv.nth_page(i);
+                    if let Some(pc) = page.child().first_child()
+                        .and_then(|c| c.downcast::<crate::page_container::PageContainer>().ok())
+                    {
+                        pc.set_zoom(val);
+                    }
+                }
+            });
+        }
 
         let app_clone = app.clone();
         let primary_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn(bool) + 'static>)> = vec![

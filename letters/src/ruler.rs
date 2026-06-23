@@ -36,6 +36,7 @@ mod imp {
         Left,
         Center,
         Right,
+        Decimal,
     }
 
     #[derive(Default)]
