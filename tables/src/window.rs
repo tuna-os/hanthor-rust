@@ -63,24 +63,9 @@ impl SheetModel {
         if c < self.col_widths.len() { self.col_widths[c] = w; }
     }
 
-    /// Calculate content width for a column by measuring text.
-    pub fn auto_fit_col(&mut self, c: usize, cr: &Context) {
-        let mut max_w = COL_HEADER_MIN_WIDTH; // header minimum
-        let header = col_label(c);
-        let layout = pangocairo::functions::create_layout(cr);
-        layout.set_text(Some(&header));
-        let (tw, _) = layout.pixel_size();
-        max_w = max_w.max(tw as f64 + 10.0);
-
-        for r in 0..self.rows {
-            let val = self.cell(r, c);
-            if val.is_empty() { continue; }
-            layout.set_text(Some(val));
-            let (tw, _) = layout.pixel_size();
-            max_w = max_w.max(tw as f64 + 10.0);
-        }
-        self.set_col_width(c, max_w);
-    }
+    /// Auto-fit column width to content (requires pangocairo crate).
+    /// TODO: implement with pangocairo text measurement
+    pub fn auto_fit_col(&mut self, _c: usize) {}
 }
 
 /// Column label: A, B, ..., Z, AA, AB...
