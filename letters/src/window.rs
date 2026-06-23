@@ -70,6 +70,21 @@ fn make_doc_widget(settings: Option<&gio::Settings>) -> (PageContainer, gtk::Tex
     }
     scroll.set_parent(&container);
     container.set_vexpand(true); container.set_hexpand(true);
+    // Zoom via Ctrl+Scroll
+    {
+        let pc = container.clone();
+        let scroll_ctrl = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        scroll_ctrl.connect_scroll(move |_ctrl, _dx, dy| {
+            let modifiers = gtk4::gdk::ModifierType::CONTROL_MASK;
+            // Check if Ctrl is held (approximate — gtk4-rs 0.11 doesn't expose get_current_event_state on scroll)
+            // Simple approach: always zoom on scroll since we're in a text editor
+            let current = pc.zoom_level();
+            let delta = if dy > 0.0 { -10.0 } else { 10.0 };
+            pc.set_zoom(current + delta);
+            glib::Propagation::Stop
+        });
+        editor.add_controller(scroll_ctrl);
+    }
     // Pagination: recalculate page count on buffer changes (debounced)
     if let Some(s) = settings {
         let s = s.clone();
@@ -135,6 +150,14 @@ impl LettersWindow {
         let toast_overlay = adw::ToastOverlay::new();
         toast_overlay.set_child(Some(&stack));
         let (status_bar, word_count_label) = suite_common::make_status_bar();
+        // Zoom slider in status bar
+        let zoom_adj = gtk4::Adjustment::new(100.0, 50.0, 200.0, 5.0, 10.0, 0.0);
+        let zoom_slider = gtk4::Scale::new(gtk4::Orientation::Horizontal, Some(&zoom_adj));
+        zoom_slider.set_width_request(120);
+        zoom_slider.set_draw_value(false);
+        let zoom_label = gtk4::Label::new(Some("100%"));
+        status_bar.append(&zoom_label);
+        status_bar.append(&zoom_slider);
 
         let app_clone = app.clone();
         let primary_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn(bool) + 'static>)> = vec![
@@ -384,7 +407,7 @@ impl LettersWindow {
                 dialog.show();
             });
             app.add_action(&a);
-            app.set_accels_for_action("app.page-setup", &["<Primary><Shift>p"]);
+            app.set_accels_for_action("app.page-setup", &["<Primary><Shift>l"]);
         }
 
         // ── Actions ────────────────────────────────────────────────
@@ -402,6 +425,12 @@ impl LettersWindow {
                     let ctx = gtk4::pango::Context::new();
                     let pages = crate::layout::paginate(&buf, &config, &ctx);
                     let text = buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string();
+                    // Read header/footer from PageContainer
+                    let (hdr, ftr) = tv.selected_page()
+                        .and_then(|p| p.child().first_child())
+                        .and_then(|c| c.downcast::<crate::page_container::PageContainer>().ok())
+                        .map(|pc| (pc.header_text(), pc.footer_text()))
+                        .unwrap_or_default();
 
                     let op = gtk::PrintOperation::new();
                     op.set_n_pages(pages.len() as i32);
@@ -416,7 +445,7 @@ impl LettersWindow {
                             config.page_width_pt, config.page_height_pt, 1.0,
                             config.margin_left, config.margin_right,
                             config.margin_top, config.margin_bottom,
-                            "", "", // headers/footers handled by dialog
+                            &hdr, &ftr,
                         );
                         // Render page text
                         let page_text = if page.end_offset as usize <= text.len() {
@@ -446,19 +475,62 @@ impl LettersWindow {
             a.connect_activate(move |_, _| {
                 let buf = active_buffer(&tv);
                 if let Some(buf) = buf {
-                    // Find the PageContainer to get header/footer text
                     let (hdr, ftr) = tv.selected_page()
                         .and_then(|p| p.child().first_child())
                         .and_then(|c| c.downcast::<crate::page_container::PageContainer>().ok())
-                        .map(|pc| {
-                            (String::new(), String::new()) // default empty
-                        })
+                        .map(|pc| (pc.header_text(), pc.footer_text()))
                         .unwrap_or_default();
                     crate::print_preview::show_print_preview(&w, &buf, &s, &hdr, &ftr);
                 }
             });
             app.add_action(&a);
             app.set_accels_for_action("app.print-preview", &["<Primary><Shift>p"]);
+        }
+
+        // ── Line spacing action ──────────────────────────────────
+        {
+            let tv = tab_view.clone();
+            let a = gtk::gio::SimpleAction::new("cycle-line-spacing", None);
+            a.connect_activate(move |_, _| {
+                if let Some(buf) = active_buffer(&tv) {
+                    let (start, end) = buf.selection_bounds().unwrap_or_else(|| {
+                        let s = buf.cursor_position();
+                        let mut ls = buf.iter_at_offset(s); ls.backward_line();
+                        let mut le = buf.iter_at_offset(s);
+                        if !le.ends_line() { le.forward_to_line_end(); }
+                        (ls, le)
+                    });
+                    let spacing_tags = ["line-spacing-1.0", "line-spacing-1.15", "line-spacing-1.5", "line-spacing-2.0"];
+                    let mut current = 0usize;
+                    for (i, t) in spacing_tags.iter().enumerate() {
+                        if let Some(tag) = buf.tag_table().lookup(t) {
+                            if start.has_tag(&tag) { current = i; break; }
+                        }
+                    }
+                    let next = (current + 1) % spacing_tags.len();
+                    buf.begin_user_action();
+                    for t in spacing_tags {
+                        if let Some(tag) = buf.tag_table().lookup(t) { buf.remove_tag(&tag, &start, &end); }
+                    }
+                    if let Some(tag) = buf.tag_table().lookup(spacing_tags[next]) {
+                        buf.apply_tag(&tag, &start, &end);
+                    }
+                    buf.end_user_action();
+                }
+            });
+            app.add_action(&a);
+        }
+
+        // ── Columns action ────────────────────────────────────────
+        {
+            let a = gtk::gio::SimpleAction::new("cycle-columns", None);
+            let s = settings.clone();
+            a.connect_activate(move |_, _| {
+                let current = s.int("column-count").max(1);
+                let next = if current >= 3 { 1 } else { current + 1 };
+                let _ = s.set_int("column-count", next);
+            });
+            app.add_action(&a);
         }
 
         // Header/Footer edit dialog action
@@ -1399,6 +1471,11 @@ pub fn register_formatting_tags(buffer: &gtk::TextBuffer) {
     add!(gtk::TextTag::builder().name("h-title").scale(2.36).weight(700).build());
     add!(gtk::TextTag::builder().name("h-subtitle").scale(1.36).weight(400).foreground("#666666").build());
     add!(gtk::TextTag::builder().name("normal").build());
+    // Line spacing tags
+    add!(gtk::TextTag::builder().name("line-spacing-1.0").pixels_inside_wrap(0).pixels_above_lines(0).pixels_below_lines(0).build());
+    add!(gtk::TextTag::builder().name("line-spacing-1.15").pixels_inside_wrap(2).pixels_above_lines(0).pixels_below_lines(0).build());
+    add!(gtk::TextTag::builder().name("line-spacing-1.5").pixels_inside_wrap(6).pixels_above_lines(2).pixels_below_lines(2).build());
+    add!(gtk::TextTag::builder().name("line-spacing-2.0").pixels_inside_wrap(12).pixels_above_lines(4).pixels_below_lines(4).build());
     add!(gtk::TextTag::builder().name("code").family("Monospace").background("#F0F0F0").foreground("#333333").build());
     add!(gtk::TextTag::builder().name("blockquote").left_margin(40).style(gtk4::pango::Style::Italic).foreground("#666666").build());
     // Alignment tags

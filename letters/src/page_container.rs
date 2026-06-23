@@ -29,6 +29,7 @@ mod imp {
         pub page_count: Cell<usize>,
         pub header_text: std::cell::RefCell<String>,
         pub footer_text: std::cell::RefCell<String>,
+        pub zoom_level: Cell<f64>,
     }
 
     #[glib::object_subclass]
@@ -52,6 +53,7 @@ mod imp {
             self.margin_left.set(DEFAULT_MARGIN_LR);
             self.margin_right.set(DEFAULT_MARGIN_LR);
             self.page_count.set(1);
+            self.zoom_level.set(100.0);
         }
         fn dispose(&self) {
             let obj = self.obj();
@@ -72,7 +74,8 @@ mod imp {
             let n_pages = self.page_count.get().max(1);
 
             let pad = 24.0;
-            let scale = ((w - pad * 2.0) / pw).min(1.5); // don't scale up too much
+            let zoom_factor = self.zoom_level.get() / 100.0;
+            let scale = ((w - pad * 2.0) / pw).min(1.5) * zoom_factor;
             let sw = pw * scale;
             let sh = ph * scale;
             let total_height = n_pages as f64 * sh + (n_pages as f64 - 1.0) * PAGE_GAP * scale;
@@ -250,10 +253,31 @@ impl PageContainer {
         self.queue_draw();
     }
 
+    /// Get the current header text template.
+    pub fn header_text(&self) -> String {
+        self.imp().header_text.borrow().clone()
+    }
+
     /// Set the footer text template. Use {page} for page number.
     pub fn set_footer_text(&self, text: &str) {
         self.imp().footer_text.replace(text.to_string());
         self.queue_draw();
+    }
+
+    /// Get the current footer text template.
+    pub fn footer_text(&self) -> String {
+        self.imp().footer_text.borrow().clone()
+    }
+
+    /// Set zoom level (50-200).
+    pub fn set_zoom(&self, level: f64) {
+        self.imp().zoom_level.set(level.clamp(50.0, 200.0));
+        self.queue_draw();
+    }
+
+    /// Get current zoom level.
+    pub fn zoom_level(&self) -> f64 {
+        self.imp().zoom_level.get()
     }
 
     pub fn load_from_settings(&self, settings: &gio::Settings) {
