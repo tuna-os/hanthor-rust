@@ -1,4 +1,3 @@
-// main.rs — Tables spreadsheet, pure Rust + gtk4-rs + suite-common.
 use gtk4::prelude::*;
 mod engine;
 mod window;
@@ -10,10 +9,4 @@ fn main() {
         win.present();
     });
     app.run();
-}
-
-// Dark mode support
-fn init_dark_mode(app: &gtk4::Application) {
-    let style = libadwaita::StyleManager::default();
-    println!("Dark mode: {}", style.is_dark());
 }
