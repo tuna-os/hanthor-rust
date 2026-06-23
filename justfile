@@ -1,12 +1,12 @@
 # justfile — Build, run, test, and inspect the GTK4 office suite
 # All build/run commands execute inside a toolbox for GTK4 dev libraries
+# Broadway verification uses a Debian Sid podman container (has GTK4 broadway backend)
 
 # ── Configuration ───────────────────────────────────────────────────────
 toolbox := env_var_or_default('GTK_BUILD_TOOLBOX', 'finupdate')
 workspace := env_var_or_default('GTK_BUILD_WORKSPACE', '/var/home/james/dev/tuna-os/gtk-office-suite')
 toolbox_image := "registry.fedoraproject.org/fedora-toolbox:43"
-# Debian has the GTK4 broadway backend enabled (Fedora doesn't)
-broadway_toolbox := env_var_or_default('GTK_BROADWAY_TOOLBOX', 'debian-broadway')
+broadway_container := "broadway-letters"
 
 default:
     @just --list
@@ -47,7 +47,7 @@ lint:
 
 preflight: check lint test
 
-# ── Smoke test (headless launch + verify) ──────────────────────────────
+# ── Smoke test ─────────────────────────────────────────────────────────
 
 verify-letters: build
     #!/usr/bin/env bash
@@ -66,42 +66,59 @@ verify-letters: build
         cat "$log"; exit 1
     fi
 
-# ── Broadway (Debian toolbox — Debian enables the GTK4 broadway backend) ─
+# ── Broadway (Debian Sid podman container — only Debian has GTK4 broadway) ──
 
 broadway-setup:
-    @if ! toolbox list --containers | awk '{print $$2}' | grep -qx '{{broadway_toolbox}}'; then \
-        echo "Creating {{broadway_toolbox}} toolbox (Debian Trixie)..."; \
-        toolbox create -y --image docker.io/library/debian:trixie {{broadway_toolbox}}; \
-        toolbox run --container {{broadway_toolbox}} sudo apt-get update -y; \
-        toolbox run --container {{broadway_toolbox}} sudo apt-get install -y \
-            libgtk-4-dev libadwaita-1-dev libpango1.0-dev libcairo2-dev \
-            cargo rustc gcc pkg-config curl; \
+    @if ! podman container exists {{broadway_container}} 2>/dev/null; then \
+        echo "Creating {{broadway_container}} container (Debian Sid)..."; \
+        podman run -d --name {{broadway_container}} --network=host \
+            -v {{workspace}}:/workspace:Z \
+            docker.io/library/debian:sid sleep infinity; \
+        podman exec --user root {{broadway_container}} bash -c ' \
+            export DEBIAN_FRONTEND=noninteractive; \
+            apt-get update -qq; \
+            apt-get install -y --no-install-recommends \
+                ca-certificates libgtk-4-dev libadwaita-1-dev libgtk-4-bin \
+                cargo rustc gcc pkg-config curl \
+                libpango1.0-dev libcairo2-dev libglib2.0-dev; \
+        '; \
     fi
-    @echo "Debian Broadway toolbox ready"
+    @echo "Broadway container ready"
+
+broadway-build: broadway-setup
+    @echo "Building Letters in Broadway container..."
+    podman exec broadway-letters bash -c 'export HOME=/tmp; cd /workspace; cargo build -p letters 2>&1' | tail -3
+    @echo "Build complete"
 
 broadway-start:
-    toolbox run --container {{broadway_toolbox}} pkill broadwayd 2>/dev/null || true; sleep 0.5
-    toolbox run --container {{broadway_toolbox}} gtk4-broadwayd --port 8085 :5 &
+    podman exec broadway-letters pkill broadwayd 2>/dev/null || true; sleep 0.5
+    podman exec -d broadway-letters gtk4-broadwayd --port 8085 :5
     sleep 2
     @echo "Broadway at http://localhost:8085"
 
-broadway-build:
-    toolbox run --container {{broadway_toolbox}} cargo build --manifest-path {{workspace}}/Cargo.toml -p letters
-
-letters-broadway: broadway-setup broadway-start broadway-build
-    toolbox run --container {{broadway_toolbox}} pkill letters 2>/dev/null || true; sleep 0.5
-    toolbox run --container {{broadway_toolbox}} \
-        env GSETTINGS_SCHEMA_DIR={{workspace}}/flatpak \
-        GDK_BACKEND=broadway BROADWAY_DISPLAY=:5 \
-        {{workspace}}/target/debug/letters &
+letters-broadway: broadway-build broadway-start
+    podman exec broadway-letters pkill letters 2>/dev/null || true; sleep 0.5
+    podman exec -d broadway-letters bash -c ' \
+        export GDK_BACKEND=broadway BROADWAY_DISPLAY=:5; \
+        export GSETTINGS_SCHEMA_DIR=/workspace/flatpak; \
+        /workspace/target/debug/letters \
+    '
     sleep 4
-    @echo "Letters via Debian Broadway at http://localhost:8085"
+    @echo "Letters via Broadway at http://localhost:8085"
+
+letters-inspect: letters-broadway
+    sleep 2
+    python3 skills/broadway-inspect/broadway_inspect.py letters
+
+broadway-stop:
+    podman exec broadway-letters pkill broadwayd 2>/dev/null || true
+    podman exec broadway-letters pkill letters 2>/dev/null || true
+    @echo "Broadway stopped"
 
 # ── Cleanup ────────────────────────────────────────────────────────────
 
 kill-all:
-    toolbox run --container {{toolbox}} pkill broadwayd 2>/dev/null || true
+    podman exec {{broadway_container}} pkill broadwayd 2>/dev/null || true
+    podman exec {{broadway_container}} pkill letters 2>/dev/null || true
     toolbox run --container {{toolbox}} pkill letters 2>/dev/null || true
-    toolbox run --container {{toolbox}} pkill tables 2>/dev/null || true
-    toolbox run --container {{toolbox}} pkill decks 2>/dev/null || true
     @echo "All killed"
