@@ -323,6 +323,23 @@ impl Ruler {
         self.queue_draw();
     }
 
+    /// Get current tab stops as a PangoTabArray for GtkTextTag.
+    pub fn get_tab_array(&self) -> Option<gtk4::pango::TabArray> {
+        let imp = self.imp();
+        let tabs = imp.tab_stops.borrow();
+        if tabs.is_empty() { return None; }
+        let mut arr = gtk4::pango::TabArray::new(tabs.len() as i32, false);
+        for (i, ts) in tabs.iter().enumerate() {
+            let alignment = match ts.alignment {
+                imp::TabAlignment::Left => gtk4::pango::TabAlign::Left,
+                imp::TabAlignment::Center => gtk4::pango::TabAlign::Center,
+                imp::TabAlignment::Right => gtk4::pango::TabAlign::Right,
+                imp::TabAlignment::Decimal => gtk4::pango::TabAlign::Left, // decimal not in pango
+            };
+            arr.set_tab(i as i32, alignment, ts.position_pt as i32);
+        }
+        Some(arr)
+    }
     /// Get current margin values for syncing.
     pub fn margin_left(&self) -> f64 { self.imp().margin_left.get() }
     pub fn margin_right(&self) -> f64 { self.imp().margin_right.get() }

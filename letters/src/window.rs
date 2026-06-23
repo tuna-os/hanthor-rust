@@ -167,9 +167,11 @@ impl LettersWindow {
         {
             let tv = tab_view.clone();
             let zl = zoom_label.clone();
+            let s = settings.clone();
             zoom_slider.connect_value_changed(move |slider| {
                 let val = slider.value();
                 zl.set_text(&format!("{}%", val as i32));
+                let _ = s.set_double("zoom-level", val);
                 for i in 0..tv.n_pages() {
                     let page = tv.nth_page(i);
                     if let Some(pc) = page.child().first_child()
@@ -256,10 +258,34 @@ impl LettersWindow {
         {
             let s = settings.clone();
             let rw = ruler_widget.downgrade();
+            let tv = tab_view.clone();
             ruler_widget.connect_changed(move || {
                 if let Some(r) = rw.upgrade() {
                     let _ = s.set_double("page-margin-left", r.margin_left());
                     let _ = s.set_double("page-margin-right", r.margin_right());
+                    // Apply tab stops to active buffer
+                    if let Some(tab_array) = r.get_tab_array() {
+                        if let Some(buf) = active_buffer(&tv) {
+                            let cursor = buf.cursor_position();
+                            let mut start = buf.iter_at_offset(cursor);
+                            start.backward_line();
+                            let mut end = buf.iter_at_offset(cursor);
+                            if !end.ends_line() { end.forward_to_line_end(); }
+                            if let Some(tag) = buf.tag_table().lookup("tab-stops") {
+                                buf.remove_tag(&tag, &start, &end);
+                            }
+                            // Create/update tab-stops tag
+                            let tag = if let Some(t) = buf.tag_table().lookup("tab-stops") {
+                                t
+                            } else {
+                                let t = gtk::TextTag::builder().name("tab-stops").build();
+                                buf.tag_table().add(&t);
+                                t
+                            };
+                            tag.set_tabs(Some(&tab_array));
+                            buf.apply_tag(&tag, &start, &end);
+                        }
+                    }
                 }
             });
         }

@@ -313,6 +313,7 @@ impl PageContainer {
             settings.double("page-margin-right"),
         );
         self.set_column_count(settings.int("column-count").max(1) as u32);
+        self.set_zoom(settings.double("zoom-level").max(50.0).min(200.0));
     }
 
     pub fn reload_settings(&self, settings: &gio::Settings) {
