@@ -4,10 +4,10 @@ mod engine;
 mod export;
 
 fn main() {
-    let app = suite_common::make_app("org.tunaos.decks-rust");
-    app.connect_activate(|app| {
+    let suite = suite_common::SuiteApp::new("org.tunaos.decks-rust");
+    suite.app.connect_activate(|app| {
         let w = window::DecksWindow::new(app);
         w.present();
     });
-    app.run();
+    suite.run();
 }

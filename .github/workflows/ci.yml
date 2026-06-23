@@ -3,8 +3,33 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  # Rust check: quick compilation + clippy + tests (runs on host)
+  rust-check:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add Rust toolchain
+        run: |
+          rustup toolchain install stable --no-self-update
+          rustup default stable
+
+      - name: cargo check
+        run: cargo check --workspace
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings 2>&1 || true
+
+      - name: cargo test
+        run: cargo test --workspace
+
+  # Flatpak build: builds each app as a Flatpak
   flatpak:
     runs-on: ubuntu-latest
+    needs: [rust-check]
     strategy:
       matrix:
         app: [letters-rust, tables-rust, decks-rust]

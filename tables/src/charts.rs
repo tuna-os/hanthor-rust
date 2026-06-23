@@ -1,5 +1,5 @@
 // charts.rs — Pure Rust chart rendering via Cairo.
-use cairo::{Context, Format, ImageSurface};
+use gtk4::cairo::{Context, Format, ImageSurface};
 
 pub enum ChartType { Bar, Line, Pie }
 

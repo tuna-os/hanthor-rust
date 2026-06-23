@@ -4,10 +4,10 @@ mod engine;
 mod export;
 
 fn main() {
-    let app = suite_common::make_app("org.tunaos.letters-rust");
-    app.connect_activate(|app| {
+    let suite = suite_common::SuiteApp::new("org.tunaos.letters-rust");
+    suite.app.connect_activate(|app| {
         let w = window::LettersWindow::new(app);
         w.present();
     });
-    app.run();
+    suite.run();
 }
