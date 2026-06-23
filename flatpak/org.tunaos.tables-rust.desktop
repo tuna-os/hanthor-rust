@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=tables (Rust)
+Comment=tables — TunaOS office suite (Rust)
+Exec=tables
+Icon=org.tunaos.tables-rust
+Terminal=false
+Type=Application
+Categories=Office;

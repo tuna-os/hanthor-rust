@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=letters (Rust)
+Comment=letters — TunaOS office suite (Rust)
+Exec=letters
+Icon=org.tunaos.letters-rust
+Terminal=false
+Type=Application
+Categories=Office;
