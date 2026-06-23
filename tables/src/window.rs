@@ -33,8 +33,8 @@ impl TablesWindow {
         grid.set_vexpand(true);
         let total_w = (COLS as f64 * CELL_W + ROW_HEADER_W) as i32;
         let total_h = (ROWS as f64 * CELL_H + CELL_H) as i32;
-        grid.set_content_width(total_w);
-        grid.set_content_height(total_h);
+        grid.set_width_request(total_w);
+        grid.set_height_request(total_h);
 
         let model_ref = model.clone();
         let sel = std::cell::Cell::new((0usize, 0usize));
@@ -59,7 +59,7 @@ impl TablesWindow {
                     let x = ROW_HEADER_W + c as f64 * CELL_W;
                     let y = CELL_H + r as f64 * CELL_H;
                     // Selection
-                    if r == sr && c == sc { cr.set_source_rgba(0.3, 0.6, 0.9, 0.2); cr.rectangle(x, y, CELL_W, CELL_H); cr.fill().unwrap(); }
+                    if r == sr && c == sc { cr.set_source_rgb(0.85, 0.92, 1.0); cr.rectangle(x, y, CELL_W, CELL_H); cr.fill().unwrap(); }
                     // Border
                     cr.set_source_rgb(0.85, 0.85, 0.85); cr.set_line_width(0.5);
                     cr.rectangle(x, y, CELL_W, CELL_H); cr.stroke().unwrap();
