@@ -61,6 +61,16 @@ impl LettersWindow {
                 // Find / Replace
                 (true, false, false, Key::f) => { println!("Find: Ctrl+F"); true }
                 (true, false, false, Key::h) => { println!("Replace: Ctrl+H"); true }
+                // Heading styles Ctrl+Alt+0-6
+                (true, false, true, Key::_1) => { add_tag(&buf, "h1", |t| { t.set_weight(700); t.set_scale(2.0); }); true }
+                (true, false, true, Key::_2) => { add_tag(&buf, "h2", |t| { t.set_weight(700); t.set_scale(1.7); }); true }
+                (true, false, true, Key::_3) => { add_tag(&buf, "h3", |t| { t.set_weight(700); t.set_scale(1.4); }); true }
+                (true, false, true, Key::_4) => { add_tag(&buf, "h4", |t| { t.set_weight(600); t.set_scale(1.2); }); true }
+                (true, false, true, Key::_5) => { add_tag(&buf, "h5", |t| { t.set_weight(600); t.set_scale(1.1); }); true }
+                (true, false, true, Key::_6) => { add_tag(&buf, "h6", |t| { t.set_weight(600); t.set_scale(1.0); }); true }
+                (true, false, true, Key::_0) => { add_tag(&buf, "normal", |t| { t.set_weight(400); t.set_scale(1.0); }); true }
+                (true, true, false, Key::period) => { add_tag(&buf, "fs-up", |t| t.set_scale(1.2)); true }
+                (true, true, false, Key::comma) => { add_tag(&buf, "fs-down", |t| t.set_scale(0.9)); true }
                 _ => false,
             };
             if handled { gtk::glib::Propagation::Stop } else { gtk::glib::Propagation::Proceed }
@@ -139,3 +149,7 @@ fn indent_text(buf: &gtk::TextBuffer, increase: bool) {
     buf.delete(&start, &end);
     buf.insert(&start, new_text.trim_end());
 }
+
+// Add heading shortcuts to the key handler
+// Ctrl+Alt+1 = H1, Ctrl+Alt+2 = H2, etc.
+(
