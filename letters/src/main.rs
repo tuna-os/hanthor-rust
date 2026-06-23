@@ -1,6 +1,7 @@
 use gtk4::prelude::*;
 mod window;
 mod engine;
+mod export;
 
 fn main() {
     let app = suite_common::make_app("org.tunaos.letters-rust");
