@@ -4,7 +4,7 @@ mod engine;
 mod window;
 
 fn main() {
-    let app = suite_common::make_app("org.tunaos.tables");
+    let app = suite_common::make_app("org.tunaos.tables-rust");
     app.connect_activate(|app| {
         let win = window::TablesWindow::new(app);
         win.present();
