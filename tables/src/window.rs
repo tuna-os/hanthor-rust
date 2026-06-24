@@ -11,6 +11,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use crate::engine::TablesEngine;
+use suite_common::format::{NumberFormat, NumberFormatKind};
 
 // ── Constants ──────────────────────────────────────────────────────────
 const DEFAULT_ROWS: usize = 100;
@@ -88,8 +89,9 @@ pub struct SheetModel {
     pub selected_row: usize,
     pub selected_col: usize,
     pub col_widths: Vec<f64>,
-    pub formulas: Vec<Vec<bool>>, // tracks which cells have formulas
-    engine_idx: usize,            // index into the IronCalc workbook
+    pub formulas: Vec<Vec<bool>>,
+    pub formats: Vec<Vec<NumberFormat>>,
+    engine_idx: usize,
 }
 
 impl SheetModel {
@@ -101,6 +103,7 @@ impl SheetModel {
             selected_row: 0, selected_col: 0,
             col_widths: vec![COL_WIDTH; cols],
             formulas: vec![vec![false; cols]; rows],
+            formats: vec![vec![NumberFormat::default(); cols]; rows],
             engine_idx,
         }
     }
@@ -738,7 +741,31 @@ impl TablesWindow {
             }
         });
 
+        let toggle_format = {
+            let s = state.clone();
+            let da = drawing_area.clone();
+            Box::new(move || {
+                let mut st = s.borrow_mut();
+                let mut sh = st.sheet_mut();
+                let r = sh.selected_row;
+                let c = sh.selected_col;
+                let current = &sh.formats[r][c].kind;
+                let next = match current {
+                    NumberFormatKind::General => NumberFormatKind::Number(2),
+                    NumberFormatKind::Number(_) => NumberFormatKind::Currency("$".into(), 2),
+                    NumberFormatKind::Currency(_, _) => NumberFormatKind::Percent(1),
+                    NumberFormatKind::Percent(_) => NumberFormatKind::Date("%Y-%m-%d".into()),
+                    NumberFormatKind::Date(_) => NumberFormatKind::Scientific(2),
+                    NumberFormatKind::Scientific(_) => NumberFormatKind::General,
+                    _ => NumberFormatKind::General,
+                };
+                sh.formats[r][c] = NumberFormat::new(next);
+                da.queue_draw();
+            })
+        };
+
         let extended_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn() + 'static>)> = vec![
+            ("format-justify-fill-symbolic", "Toggle Number Format", toggle_format),
             ("insert-object-symbolic", "Show Bar Chart", show_bar_chart),
             ("insert-image-symbolic", "Show Pie Chart", show_pie_chart),
             ("document-send-symbolic", "Export PDF", export_pdf),
@@ -1006,12 +1033,12 @@ fn draw_grid(cr: &Context, state: &Rc<RefCell<AppState>>, width: f64, height: f6
                 cr.fill().unwrap();
             }
 
-            // Cell text
+            // Cell text (formatted)
             if !val.is_empty() {
                 cr.set_source_rgb(0.1, 0.1, 0.1);
                 cr.move_to(x + 4.0, y + ROW_HEIGHT - 8.0);
-                let display = if val.len() > 15 { &val[..14] } else { val };
-                cr.show_text(display).unwrap();
+                let formatted = sh.formats[row][col].format(val);
+                cr.show_text(&formatted).unwrap();
             }
 
             // Grid lines
