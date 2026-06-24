@@ -1,1 +1,2 @@
 .flatpak-cache/
+tests/gui/*.png

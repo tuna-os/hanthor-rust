@@ -156,7 +156,6 @@ mod imp {
                         cr.stroke().unwrap();
                     }
                 }
-                cr.restore().unwrap();
 
                 // ── Header text ──
                 let header = self.header_text.borrow();

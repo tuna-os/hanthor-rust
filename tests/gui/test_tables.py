@@ -1,16 +1,42 @@
 #!/usr/bin/env python3
-"""Dogtail GUI test for Rust Tables — verifies app launches and renders."""
-import sys
-from dogtail import tree
+import time
+from framework import BaseGUITestCase
 
-def main():
-    app = tree.root.application('tables')
-    print('Rust Tables — found application')
-    cc = app.child_count if hasattr(app, 'child_count') else 0
-    print(f'  child_count: {cc}')
-    if cc > 0: print('RUST GUITEST: PASS'); return 0
-    else: print('RUST GUITEST: SKIP — a11y tree empty'); return 0
+class TablesGUITest(BaseGUITestCase):
+    app_name = "tables"
 
-if __name__ == '__main__':
-    try: sys.exit(main())
-    except Exception as e: print(f'RUST GUITEST: FAIL — {e}'); sys.exit(1)
+    def test_spreadsheet_operations(self):
+        # 1. Create a new spreadsheet
+        new_doc_btn = self.app.child(name="New Document", roleName="button")
+        new_doc_btn.do_action(0)
+        time.sleep(1.0)
+        
+        # 2. Focus formula bar and enter a number
+        formula_bar = self.app.child(roleName="text")
+        self.assertIsNotNone(formula_bar, "Formula bar text widget not found")
+        formula_bar.typeText("123")
+        formula_bar.keyCombo("Return")
+        time.sleep(0.5)
+        
+        # 3. Move down to cell A2 and enter a formula
+        self.app.keyCombo("Down")
+        time.sleep(0.2)
+        formula_bar.typeText("=A1*2")
+        formula_bar.keyCombo("Return")
+        time.sleep(0.5)
+        
+        # 4. Add a new sheet
+        add_sheet_btn = self.app.child(name="Add sheet", roleName="button")
+        add_sheet_btn.do_action(0)
+        time.sleep(0.5)
+        
+        # 5. Verify Sheet2 exists (it should show up in Sheet list/combobox or tab)
+        sheet2_combo = self.app.child(name="Sheet2", roleName="toggle button")
+        self.assertIsNotNone(sheet2_combo, "Sheet2 tab/toggle button not found after sheet addition")
+        
+        # 6. Capture cropped window screenshot
+        self.take_screenshot("spreadsheet_calc")
+
+if __name__ == "__main__":
+    import unittest
+    unittest.main()

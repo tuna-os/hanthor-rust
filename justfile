@@ -5,7 +5,7 @@
 # ── Configuration ───────────────────────────────────────────────────────
 toolbox := env_var_or_default('GTK_BUILD_TOOLBOX', 'finupdate')
 workspace := env_var_or_default('GTK_BUILD_WORKSPACE', '/var/home/james/dev/tuna-os/gtk-office-suite')
-toolbox_image := "registry.fedoraproject.org/fedora-toolbox:43"
+toolbox_image := "registry.fedoraproject.org/fedora-toolbox:44"
 broadway_container := "broadway-letters"
 
 default:
@@ -23,6 +23,12 @@ setup:
         gtk4-devel libadwaita-devel pango-devel cairo-devel \
         openssl-devel
     @echo "Toolbox {{toolbox}} ready"
+
+setup-gui: setup
+    toolbox run --container {{toolbox}} sudo dnf install -y python3-pip python3-dogtail python3-pillow
+    toolbox run --container {{toolbox}} pip install playwright
+    toolbox run --container {{toolbox}} python3 -m playwright install chromium
+    @echo "Toolbox {{toolbox}} ready for GUI testing"
 
 reset-toolbox:
     toolbox rm -f {{toolbox}} || true
@@ -114,6 +120,74 @@ broadway-stop:
     podman exec broadway-letters pkill broadwayd 2>/dev/null || true
     podman exec broadway-letters pkill letters 2>/dev/null || true
     @echo "Broadway stopped"
+
+# ── Local GUI Testing (Dogtail + Broadway + Playwright) ────────────────────
+
+test-gui-local app: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Running GUI test for {{app}} inside toolbox ==="
+    pkill -x {{app}} 2>/dev/null || true
+    sleep 0.5
+    
+    # Start accessibility bus and run app + tests under Xvfb inside toolbox
+    toolbox run --container {{toolbox}} dbus-run-session bash -c '
+        set -euo pipefail
+        
+        # Disable window shadows via CSS in the test container environment
+        mkdir -p ~/.config/gtk-4.0
+        echo "window, window decoration { box-shadow: none; }" > ~/.config/gtk-4.0/gtk.css
+        
+        # Disable animations via GSettings
+        gsettings set org.gnome.desktop.interface enable-animations false
+        
+        # Start accessibility infrastructure
+        /usr/libexec/at-spi-bus-launcher --launch-immediately &
+        /usr/libexec/at-spi2-registryd &
+        
+        # Poll until the accessibility bus is fully ready
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            if gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+                echo "AT-SPI bus ready after $i seconds"
+                break
+            fi
+            sleep 0.5
+        done
+        
+        # Run tests inside xvfb
+        xvfb-run -a -s "-screen 0 1920x1080x24" python3 {{workspace}}/tests/gui/test_{{app}}.py
+    '
+    pkill -x {{app}} 2>/dev/null || true
+
+test-gui-all: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Running all GUI tests inside toolbox ==="
+    pkill -x letters 2>/dev/null || true
+    pkill -x decks 2>/dev/null || true
+    pkill -x tables 2>/dev/null || true
+    
+    toolbox run --container {{toolbox}} dbus-run-session bash -c '
+        set -euo pipefail
+        mkdir -p ~/.config/gtk-4.0
+        echo "window, window decoration { box-shadow: none; }" > ~/.config/gtk-4.0/gtk.css
+        gsettings set org.gnome.desktop.interface enable-animations false
+        
+        /usr/libexec/at-spi-bus-launcher --launch-immediately &
+        /usr/libexec/at-spi2-registryd &
+        
+        for i in 1 2 3 4 5; do
+            if gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+                break
+            fi
+            sleep 0.5
+        done
+        
+        xvfb-run -a -s "-screen 0 1920x1080x24" python3 -m unittest discover -s {{workspace}}/tests/gui -p "test_*.py"
+    '
+    pkill -x letters 2>/dev/null || true
+    pkill -x decks 2>/dev/null || true
+    pkill -x tables 2>/dev/null || true
 
 # ── Cleanup ────────────────────────────────────────────────────────────
 

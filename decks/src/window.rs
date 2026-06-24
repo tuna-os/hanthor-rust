@@ -253,16 +253,25 @@ impl DecksWindow {
             let undo = undo.clone();
             del_btn.connect_clicked(move |_| {
                 let idx = cs_ref.get();
-                let mut slides = ss.borrow_mut();
-                if slides.len() > 1 && idx < slides.len() {
-                    let removed = slides[idx].clone();
-                    let new_idx = idx.min(slides.len().saturating_sub(2));
+                let has_slides = {
+                    let slides = ss.borrow();
+                    slides.len() > 1 && idx < slides.len()
+                };
+                if has_slides {
+                    let removed = {
+                        let slides = ss.borrow();
+                        slides[idx].clone()
+                    };
+                    let new_idx = {
+                        let slides = ss.borrow();
+                        idx.min(slides.len().saturating_sub(2))
+                    };
                     undo.borrow_mut().execute(Box::new(DeleteSlideCmd {
                         index: idx,
                         slide: removed,
                     }));
                     cs_ref.set(new_idx);
-                    rebuild_slide_list(&sl, &slides, new_idx);
+                    rebuild_slide_list(&sl, &ss.borrow(), new_idx);
                     cs.queue_draw();
                 }
             });
@@ -678,16 +687,18 @@ impl DecksWindow {
                     cs.add_titled(&cs_scroll, Some("editor"), "Editor");
                 }
                 cs.set_visible_child_name("editor");
-                let mut slides = ss.borrow_mut();
-                *slides = vec![Slide {
-                    title: "Slide 1".into(),
-                    background: "#ffffff".into(),
-                    objects: vec![],
-                    notes: String::new(),
-            master_idx: Some(0),
-                }];
+                {
+                    let mut slides = ss.borrow_mut();
+                    *slides = vec![Slide {
+                        title: "Slide 1".into(),
+                        background: "#ffffff".into(),
+                        objects: vec![],
+                        notes: String::new(),
+                        master_idx: Some(0),
+                    }];
+                }
                 *path_ref.borrow_mut() = None;
-                rebuild_slide_list(&sl, &slides, 0);
+                rebuild_slide_list(&sl, &ss.borrow(), 0);
                 cs.queue_draw();
             });
             app.add_action(&act);
