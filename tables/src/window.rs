@@ -126,6 +126,7 @@ pub struct SheetModel {
     pub borders: Vec<Vec<CellBorder>>,
     pub frozen_rows: usize,
     pub frozen_cols: usize,
+    pub merges: Vec<(usize, usize, usize, usize)>, // (r1,c1,r2,c2) inclusive
     engine_idx: usize,
 }
 
@@ -143,6 +144,7 @@ impl SheetModel {
             borders: vec![vec![CellBorder::none(); cols]; rows],
             frozen_rows: 0,
             frozen_cols: 0,
+            merges: Vec::new(),
             engine_idx,
         }
     }
@@ -216,6 +218,30 @@ impl SheetModel {
             self.formats[new_row] = old_formats[old_row].clone();
             self.borders[new_row] = old_borders[old_row].clone();
         }
+    }
+
+    /// Merge the selected cell with cell to its right. Toggle merges/unmerges.
+    pub fn toggle_merge(&mut self) {
+        let r = self.selected_row;
+        let c = self.selected_col;
+        if c + 1 >= self.cols { return; }
+        if self.is_merged(r, c).is_some() {
+            self.unmerge(r, c);
+            return;
+        }
+        self.merges.push((r, c, r, c + 1));
+    }
+
+    pub fn is_merged(&self, r: usize, c: usize) -> Option<(usize, usize, usize, usize)> {
+        self.merges.iter().find(|&&(r1, c1, r2, c2)| {
+            r >= r1 && r <= r2 && c >= c1 && c <= c2
+        }).copied()
+    }
+
+    pub fn unmerge(&mut self, r: usize, c: usize) {
+        self.merges.retain(|&(r1, c1, r2, c2)| {
+            !(r >= r1 && r <= r2 && c >= c1 && c <= c2)
+        });
     }
 
     /// Sync display data from the given IronCalc engine.
@@ -895,9 +921,20 @@ impl TablesWindow {
             })
         };
 
+        let toggle_merge = {
+            let s = state.clone();
+            let da = drawing_area.clone();
+            Box::new(move || {
+                let mut st = s.borrow_mut();
+                st.sheet_mut().toggle_merge();
+                da.queue_draw();
+            })
+        };
+
         let extended_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn() + 'static>)> = vec![
             ("format-justify-fill-symbolic", "Toggle Number Format", toggle_format),
             ("format-text-strikethrough-symbolic", "Toggle Cell Border", toggle_border),
+            ("view-grid-symbolic", "Merge Cells", toggle_merge),
             ("insert-object-symbolic", "Show Bar Chart", show_bar_chart),
             ("insert-image-symbolic", "Show Pie Chart", show_pie_chart),
             ("document-send-symbolic", "Export PDF", export_pdf),
@@ -1278,6 +1315,37 @@ fn draw_grid_region(cr: &Context, state: &Rc<RefCell<AppState>>, width: f64, hei
             let cw = sh.col_width(col);
             let x = cell_x - scroll_x;
             let val = sh.cell(row, col);
+
+            // Skip cells that are inside a merge (except top-left corner)
+            if let Some((mr1, mc1, mr2, mc2)) = sh.is_merged(row, col) {
+                if row != mr1 || col != mc1 {
+                    cell_x += cw;
+                    continue; // skip rendering for secondary merged cells
+                }
+                // Render merged cell spanning multiple cells
+                let merge_w: f64 = (mc1..=mc2).map(|cc| sh.col_width(cc)).sum();
+                let merge_h = (mr2 - mr1 + 1) as f64 * ROW_HEIGHT;
+                cr.rectangle(x, y, merge_w, merge_h);
+                cr.set_source_rgb(1.0, 1.0, 1.0);
+                cr.fill_preserve().unwrap();
+                // Grid lines for merged area
+                cr.set_source_rgb(GRID_LINE.0, GRID_LINE.1, GRID_LINE.2);
+                cr.set_line_width(0.5);
+                cr.stroke().unwrap();
+                // Text centered in merged area
+                if !val.is_empty() {
+                    cr.set_source_rgb(0.1, 0.1, 0.1);
+                    let formatted = sh.formats[row][col].format(val);
+                    let ext = cr.text_extents(&formatted).unwrap();
+                    cr.move_to(x + (merge_w - ext.width()) / 2.0, y + (merge_h + ext.height()) / 2.0 - 2.0);
+                    cr.show_text(&formatted).unwrap();
+                }
+                // Cell borders for merged area
+                let border = &sh.borders[row][col];
+                draw_border_edges(cr, x, y, merge_w, merge_h, border);
+                cell_x += merge_w;
+                continue;
+            }
 
             // Cell background for formula cells (light green tint)
             if sh.is_formula(row, col) {
