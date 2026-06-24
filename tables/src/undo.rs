@@ -258,17 +258,16 @@ mod tests {
     #[test]
     fn test_sort_cmd_preserves_data() {
         let mut state = make_state();
-        state.sheet_mut().data[0][0] = "B".into();
+        // Set up data in reverse order
+        state.sheet_mut().data[0][0] = "C".into();
         state.sheet_mut().data[1][0] = "A".into();
-        state.sheet_mut().data[2][0] = "C".into();
+        state.sheet_mut().data[2][0] = "B".into();
         let old_data = state.sheet().data.clone();
-        // Simulate sort on col 0 ascending
-        let mut indices: Vec<usize> = (0..state.sheet().rows).collect();
-        indices.sort_by(|a, b| state.sheet().data[*a][0].cmp(&state.sheet().data[*b][0]));
+        // Build sorted data manually
         let mut new_data = old_data.clone();
-        for (new_row, &old_row) in indices.iter().enumerate() {
-            new_data[new_row] = old_data[old_row].clone();
-        }
+        new_data[0] = old_data[1].clone(); // A
+        new_data[1] = old_data[2].clone(); // B
+        new_data[2] = old_data[0].clone(); // C
         let cmd = SortCmd {
             col: 0,
             old_data: old_data.clone(),
@@ -283,7 +282,10 @@ mod tests {
         cmd.apply(&mut state);
         assert_eq!(state.sheet().data[0][0], "A");
         assert_eq!(state.sheet().data[1][0], "B");
+        assert_eq!(state.sheet().data[2][0], "C");
         cmd.undo(&mut state);
-        assert_eq!(state.sheet().data[0][0], "B");
+        assert_eq!(state.sheet().data[0][0], "C");
+        assert_eq!(state.sheet().data[1][0], "A");
+        assert_eq!(state.sheet().data[2][0], "B");
     }
 }
