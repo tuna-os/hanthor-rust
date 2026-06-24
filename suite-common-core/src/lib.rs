@@ -5,3 +5,4 @@ pub mod string_pool;
 pub mod units;
 pub mod props;
 pub mod style;
+pub mod search;
