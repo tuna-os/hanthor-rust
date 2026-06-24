@@ -1,6 +1,8 @@
 # Changelog
 
-## v1.1.0 (2026-06-24)
+## v1.0 (post-release) — 2026-06-24
+
+Features added after the v1.0 tag and GitHub release.
 
 ### Tables
 - Column resize via drag on header divider with col-resize cursor
