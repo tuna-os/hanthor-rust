@@ -1105,7 +1105,7 @@ impl TablesWindow {
                                 match save_engine_to_xlsx(&path_str, &ss) {
                                     Ok(()) => {
                                         let toast = adw::Toast::new("Spreadsheet saved");
-                                        t.add_toast(toast);
+                                        (&*t).add_toast(toast);
                                     }
                                     Err(e) => {
                                         let err = adw::AlertDialog::builder()
