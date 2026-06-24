@@ -630,6 +630,8 @@ dependencies = [
  "gtk4",
  "image",
  "libadwaita",
+ "pango",
+ "pangocairo",
  "pulldown-cmark",
  "quick-xml 0.31.0",
  "suite-common",

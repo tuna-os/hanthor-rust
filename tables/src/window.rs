@@ -111,7 +111,7 @@ fn hit_col_divider(x: f64, y: f64, scroll_x: f64, sheet: &SheetModel) -> Option<
 }
 
 /// Auto-fit column width to content using PangoLayout text measurement.
-fn auto_fit_column(cr: &Context, sheet: &mut SheetModel, col: usize, scroll_x: f64) {
+fn auto_fit_column(cr: &Context, sheet: &mut SheetModel, col: usize, _scroll_x: f64) {
     let layout = pangocairo::functions::create_layout(cr);
     let mut max_w: f64 = 30.0;
     // Measure header label
@@ -478,7 +478,6 @@ impl TablesWindow {
 
         // ── Drawing area ────────────────────────────────────────────────
         let drawing_area = gtk4::DrawingArea::new();
-        drawing_area.set_accessible_role(gtk4::AccessibleRole::Canvas);
         drawing_area.set_vexpand(true);
         drawing_area.set_hexpand(true);
 
