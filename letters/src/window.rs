@@ -570,6 +570,11 @@ impl LettersWindow {
                     }
                     if let Some(tag) = buf.tag_table().lookup(spacing_tags[next]) {
                         buf.apply_tag(&tag, &start, &end);
+                        // Persist line spacing to GSettings
+                        let spacing_map = [("line-spacing-1.0", 1.0), ("line-spacing-1.15", 1.15), ("line-spacing-1.5", 1.5), ("line-spacing-2.0", 2.0)];
+                        let val = spacing_map.iter().find(|(n,_)| *n == spacing_tags[next]).map(|(_,v)| *v).unwrap_or(1.15);
+                        let s = gtk4::gio::Settings::new("org.tunaos.letters-rust");
+                        let _ = s.set_double("line-spacing", val);
                     }
                     buf.end_user_action();
                 }
