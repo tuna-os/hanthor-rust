@@ -142,6 +142,90 @@ AdwApplicationWindow
 
 ---
 
+## Additional Reference Apps
+
+### 4. Rnote — Rust GTK4 Vector Drawing App
+
+| Aspect | Details |
+|--------|----------|
+| **Repo** | `https://github.com/flxzt/rnote` |
+| **Stack** | Rust + gtk4-rs + libadwaita + Cairo + p2d (custom rendering) |
+| **Key files** | `rnote-engine/src/engine/mod.rs`, `rnote-engine/src/pens/`, `rnote-engine/src/selection.rs` |
+
+**Relevance to Decks:** Canvas-based drawing, object manipulation (shapes, selection, resize, move), undo/redo via transaction system, pen/tool abstraction.
+
+**Key patterns to borrow:**
+- **Undo/Redo system:** Engine-level transactions with apply/undo semantics (see Decks Pattern #27)
+- **Object selection:** Click hit-testing with handles, resize from corners/edges (see Decks Pattern #28)
+- **Tool abstraction:** Trait-based pen system (Brush, Pen, Eraser, Shape) — could inspire a \"tool mode\" system for Decks (Select, Text, Shape, Image modes)
+
+**Architecture:**
+```
+rnote/
+├── rnote-engine/         # Core engine crate (pure Rust, no GTK)
+│   ├── pens/             # Tool implementations
+│   ├── engine.rs         # Transaction-based engine with undo/redo
+│   ├── selection.rs      # Object selection + manipulation
+│   └── document.rs       # Multi-page document model
+├── rnote-ui/             # GTK4 UI layer
+│   ├── canvas.rs         # Main drawing canvas (GtkDrawingArea)
+│   ├── appwindow.rs      # Main window
+│   └── sidebar.rs        # Tool/config panels
+└── rnote-compose/        # IME/composition support
+```
+
+### 5. LibreOffice Calc & Impress — Mature Feature-Set Reference
+
+**Note:** Not Rust/GTK4, but the definitive reference for complete office suite functionality.
+
+| Aspect | Details |
+|--------|----------|
+| **Homepage** | `https://www.libreoffice.org/` |
+| **Calc Docs** | `https://books.libreoffice.org/en/GS74/GS7403-GettingStartedWithCalc.html` |
+| **Impress Docs** | `https://books.libreoffice.org/en/GS71/GS7106-GettingStartedWithImpress.html` |
+| **License** | MPL-2.0 |
+
+**What we use LibreOffice for:**
+- **Feature completeness checklist:** The full Calc and Impress feature catalogs (see AGENT-REFERENCE-LIBRARY.md end sections) define our long-term target
+- **UI behavior reference:** How Format Cells dialog works, sort/filter UX, slide transitions sidebar
+- **File format compatibility:** Our PPTX/XLSX roundtrip should match what LibreOffice produces
+- **Keyboard shortcuts:** Consistency with existing Linux office suite expectations
+
+**Key Calc reference pages:**
+- Format Cells dialog: `https://books.libreoffice.org/en/CG74/CG7404-FormattingData.html`
+- Sort & Filter: `https://help.libreoffice.org/latest/en-US/text/scalc/guide/filters.html`
+- Charts: `https://books.libreoffice.org/en/CG74/CG7404-FormattingData.html`
+
+**Key Impress reference pages:**
+- Slide Transitions: `https://help.libreoffice.org/latest/ar/text/simpress/guide/animated_slidechange.html`
+- Animations: `https://books.libreoffice.org/en/GS71/GS7106-GettingStartedWithImpress.html`
+- Master Slides: Slide → Master Slide menu path
+
+### 6. gtk-rs-animation — GTK Animation Examples
+
+| Aspect | Details |
+|--------|----------|
+| **Repo** | `https://github.com/iovxw/gtk-rs-animation` |
+| **Stack** | Rust + gtk4-rs |
+| **License** | Public domain (Unlicense) |
+
+**Relevance:** Reference for AdwTimedAnimation, AdwCallbackAnimationTarget, widget property animations in GTK4+Rust. Useful for:
+- Slide transition animations (Decks Pattern #29)
+- Sidebar collapse/expand animations
+- Toolbar reveal/hide animations
+- Dialog entry/exit animations
+
+**Key pattern:**
+```rust
+let target = adw::CallbackAnimationTarget::new(move |value| {
+    widget.set_opacity(value);
+});
+let animation = adw::TimedAnimation::new(&widget, 0.0, 1.0, 300, &target);
+animation.play();
+```
+
+---
+
 ## Rust-Specific GNOME Patterns
 
 ### Widget Subclass Pattern (from Loupe)
