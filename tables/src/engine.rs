@@ -142,4 +142,19 @@ mod tests {
         assert_eq!(grid[0][1], "B1");
         assert_eq!(grid[1][0], "A2");
     }
+
+    #[test]
+    fn test_empty_cell() {
+        let engine = TablesEngine::new(3, 3).unwrap();
+        assert_eq!(engine.cell(0, 0), "");
+    }
+
+    #[test]
+    fn test_has_formula_detection() {
+        let mut engine = TablesEngine::new(3, 3).unwrap();
+        engine.set_cell_text(0, 0, "=1+1");
+        assert!(engine.has_formula(0, 0));
+        engine.set_cell_text(0, 1, "not a formula");
+        assert!(!engine.has_formula(0, 1));
+    }
 }

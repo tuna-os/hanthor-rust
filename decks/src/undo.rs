@@ -207,3 +207,101 @@ impl Command<Vec<Slide>> for ReorderSlidesCmd {
     }
     fn description(&self) -> &str { "Reorder Slides" }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use suite_common::undo::Command;
+
+    fn make_slides() -> Vec<Slide> {
+        vec![Slide { title: "S1".into(), background: "#fff".into(), objects: vec![], notes: String::new() }]
+    }
+
+    #[test]
+    fn test_add_object_undo() {
+        let mut slides = make_slides();
+        let obj = SlideObject::Rect { x: 10.0, y: 10.0, w: 100.0, h: 50.0 };
+        let cmd = AddObjectCmd::new(0, obj);
+        cmd.apply(&mut slides);
+        assert_eq!(slides[0].objects.len(), 1);
+        cmd.undo(&mut slides);
+        assert_eq!(slides[0].objects.len(), 0);
+    }
+
+    #[test]
+    fn test_delete_object_undo() {
+        let mut slides = make_slides();
+        let obj = SlideObject::Rect { x: 10.0, y: 10.0, w: 100.0, h: 50.0 };
+        slides[0].objects.push(obj.clone());
+        let cmd = DeleteObjectCmd::new(0, 0, obj);
+        cmd.apply(&mut slides);
+        assert_eq!(slides[0].objects.len(), 0);
+        cmd.undo(&mut slides);
+        assert_eq!(slides[0].objects.len(), 1);
+    }
+
+    #[test]
+    fn test_move_object_undo() {
+        let mut slides = make_slides();
+        slides[0].objects.push(SlideObject::Rect { x: 10.0, y: 10.0, w: 100.0, h: 50.0 });
+        let cmd = MoveObjectCmd { slide_idx: 0, index: 0, dx: 10.0, dy: 20.0 };
+        cmd.apply(&mut slides);
+        let (x, y) = obj_position(&slides[0].objects[0]);
+        assert_eq!(x, 20.0);
+        assert_eq!(y, 30.0);
+        cmd.undo(&mut slides);
+        let (x, y) = obj_position(&slides[0].objects[0]);
+        assert_eq!(x, 10.0);
+        assert_eq!(y, 10.0);
+    }
+
+    #[test]
+    fn test_change_text_undo() {
+        let mut slides = make_slides();
+        slides[0].objects.push(SlideObject::TextBox { text: "old".into(), x: 0.0, y: 0.0, w: 100.0, h: 20.0 });
+        let cmd = ChangeTextCmd { slide_idx: 0, index: 0, old_text: "old".into(), new_text: "new".into() };
+        cmd.apply(&mut slides);
+        if let SlideObject::TextBox { text, .. } = &slides[0].objects[0] {
+            assert_eq!(text, "new");
+        } else { panic!(); }
+        cmd.undo(&mut slides);
+        if let SlideObject::TextBox { text, .. } = &slides[0].objects[0] {
+            assert_eq!(text, "old");
+        } else { panic!(); }
+    }
+
+    #[test]
+    fn test_add_slide_undo() {
+        let mut slides = make_slides();
+        let new_slide = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        let cmd = AddSlideCmd { index: 1, slide: new_slide };
+        cmd.apply(&mut slides);
+        assert_eq!(slides.len(), 2);
+        cmd.undo(&mut slides);
+        assert_eq!(slides.len(), 1);
+    }
+
+    #[test]
+    fn test_delete_slide_undo() {
+        let mut slides = make_slides();
+        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        slides.push(s2.clone());
+        let cmd = DeleteSlideCmd { index: 1, slide: s2 };
+        cmd.apply(&mut slides);
+        assert_eq!(slides.len(), 1);
+        cmd.undo(&mut slides);
+        assert_eq!(slides.len(), 2);
+    }
+
+    #[test]
+    fn test_reorder_slides_undo() {
+        let mut slides = make_slides();
+        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        slides.push(s2);
+        let cmd = ReorderSlidesCmd { from: 0, to: 1 };
+        cmd.apply(&mut slides);
+        assert_eq!(slides[0].title, "S2");
+        cmd.undo(&mut slides);
+        assert_eq!(slides[0].title, "S1");
+    }
+}

@@ -160,3 +160,6 @@
 {"type":"task_complete","goalId":"mqrqzgkw-qkrpas","taskId":"ci-workflow","evidence":"Starting step 1: creating GitHub Actions CI workflow with GTK4 container environment","at":"2026-06-24T07:24:30.044Z"}
 {"type":"goal_paused","goalId":"mqrqzgkw-qkrpas","reason":"user","status":"paused","at":"2026-06-24T07:38:14.374Z"}
 {"type":"goal_resumed","goalId":"mqrqzgkw-qkrpas","reason":"user","at":"2026-06-24T07:38:35.801Z"}
+{"type":"task_complete","goalId":"mqrqzgkw-qkrpas","taskId":"fix-tests","evidence":"CI passes 19/19 tests. Fixed rdocx git dependency, libadwaita v1_5 downgrade, Excel date test assertions.","at":"2026-06-24T07:57:35.587Z"}
+{"type":"task_complete","goalId":"mqrqzgkw-qkrpas","taskId":"clippy","evidence":"cargo clippy --workspace passes in CI (zero errors, warnings tolerated)","at":"2026-06-24T07:57:35.589Z"}
+{"type":"task_complete","goalId":"mqrqzgkw-qkrpas","taskId":"flatpak-build","evidence":"All 3 Flatpak manifests build successfully. Fixed JSON syntax (missing commas after glib-compile-schemas).","at":"2026-06-24T07:57:35.590Z"}

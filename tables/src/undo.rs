@@ -174,3 +174,116 @@ impl Command<SheetState> for FreezeCmd {
     }
     fn description(&self) -> &str { "Freeze Panes" }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::window::{SheetModel, CellBorder, BorderStyle};
+    use suite_common::format::{NumberFormat, NumberFormatKind};
+
+    fn make_state() -> SheetState {
+        let sheet = SheetModel::new("Test", 5, 5, 0);
+        SheetState { sheets: vec![sheet], active_sheet: 0 }
+    }
+
+    #[test]
+    fn test_cell_edit_undo() {
+        let mut state = make_state();
+        let cmd = CellEditCmd {
+            row: 0, col: 0, old_val: "old".into(), new_val: "new".into(),
+            old_formula: false, new_formula: false,
+        };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().cell(0, 0), "new");
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().cell(0, 0), "old");
+    }
+
+    #[test]
+    fn test_col_resize_undo() {
+        let mut state = make_state();
+        let old_w = state.sheet().col_width(0);
+        let cmd = ColResizeCmd { col: 0, old_width: old_w, new_width: 200.0 };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().col_width(0), 200.0);
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().col_width(0), old_w);
+    }
+
+    #[test]
+    fn test_format_undo() {
+        let mut state = make_state();
+        let old = NumberFormat::default();
+        let new = NumberFormat::new(NumberFormatKind::Currency("$".into(), 2));
+        let cmd = FormatCmd { row: 0, col: 0, old_format: old.clone(), new_format: new.clone() };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().formats[0][0].kind, NumberFormatKind::Currency("$".into(), 2));
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().formats[0][0].kind, NumberFormatKind::General);
+    }
+
+    #[test]
+    fn test_border_undo() {
+        let mut state = make_state();
+        let old = CellBorder::none();
+        let new = CellBorder::outline(BorderStyle::Solid, (0.0, 0.0, 0.0));
+        let cmd = BorderCmd { row: 0, col: 0, old_border: old.clone(), new_border: new.clone() };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().borders[0][0].top, BorderStyle::Solid);
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().borders[0][0].top, BorderStyle::None);
+    }
+
+    #[test]
+    fn test_freeze_undo() {
+        let mut state = make_state();
+        let cmd = FreezeCmd { old_rows: 0, old_cols: 0, new_rows: 1, new_cols: 0 };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().frozen_rows, 1);
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().frozen_rows, 0);
+    }
+
+    #[test]
+    fn test_merge_toggle() {
+        let mut state = make_state();
+        assert!(state.sheet().merges.is_empty());
+        let cmd = MergeCmd { merges: vec![(0, 0, 0, 1)] };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().merges.len(), 1);
+        cmd.undo(&mut state);
+        assert!(state.sheet().merges.is_empty());
+    }
+
+    #[test]
+    fn test_sort_cmd_preserves_data() {
+        let mut state = make_state();
+        state.sheet_mut().data[0][0] = "B".into();
+        state.sheet_mut().data[1][0] = "A".into();
+        state.sheet_mut().data[2][0] = "C".into();
+        let old_data = state.sheet().data.clone();
+        // Simulate sort on col 0 ascending
+        let mut indices: Vec<usize> = (0..state.sheet().rows).collect();
+        indices.sort_by(|a, b| state.sheet().data[*a][0].cmp(&state.sheet().data[*b][0]));
+        let mut new_data = old_data.clone();
+        for (new_row, &old_row) in indices.iter().enumerate() {
+            new_data[new_row] = old_data[old_row].clone();
+        }
+        let cmd = SortCmd {
+            col: 0,
+            old_data: old_data.clone(),
+            old_formulas: state.sheet().formulas.clone(),
+            old_formats: state.sheet().formats.clone(),
+            old_borders: state.sheet().borders.clone(),
+            new_data: new_data.clone(),
+            new_formulas: state.sheet().formulas.clone(),
+            new_formats: state.sheet().formats.clone(),
+            new_borders: state.sheet().borders.clone(),
+        };
+        cmd.apply(&mut state);
+        assert_eq!(state.sheet().data[0][0], "A");
+        assert_eq!(state.sheet().data[1][0], "B");
+        cmd.undo(&mut state);
+        assert_eq!(state.sheet().data[0][0], "B");
+    }
+}
