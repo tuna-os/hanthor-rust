@@ -35,6 +35,40 @@ pub enum SortDirection { Ascending, Descending }
 pub enum BorderStyle { None, Solid, Dotted, Dashed, Double }
 
 #[derive(Clone, Debug)]
+pub enum ValidationRule {
+    List(Vec<String>),
+    WholeNumber { min: Option<i64>, max: Option<i64> },
+    Decimal { min: Option<f64>, max: Option<f64> },
+    TextLength { min: Option<usize>, max: Option<usize> },
+    Regex(String),
+}
+
+impl ValidationRule {
+    pub fn validate(&self, value: &str) -> bool {
+        match self {
+            ValidationRule::List(items) => items.is_empty() || items.iter().any(|i| i == value),
+            ValidationRule::WholeNumber { min, max } => {
+                value.parse::<i64>().ok().map_or(true, |v| {
+                    min.map_or(true, |m| v >= m) && max.map_or(true, |m| v <= m)
+                })
+            }
+            ValidationRule::Decimal { min, max } => {
+                value.parse::<f64>().ok().map_or(true, |v| {
+                    min.map_or(true, |m| v >= m) && max.map_or(true, |m| v <= m)
+                })
+            }
+            ValidationRule::TextLength { min, max } => {
+                let len = value.len();
+                min.map_or(true, |m| len >= m) && max.map_or(true, |m| len <= m)
+            }
+            ValidationRule::Regex(pattern) => {
+                regex::Regex::new(pattern).map_or(true, |re| re.is_match(value))
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct CellBorder {
     pub top: BorderStyle,
     pub bottom: BorderStyle,
@@ -128,7 +162,8 @@ pub struct SheetModel {
     pub borders: Vec<Vec<CellBorder>>,
     pub frozen_rows: usize,
     pub frozen_cols: usize,
-    pub merges: Vec<(usize, usize, usize, usize)>, // (r1,c1,r2,c2) inclusive
+    pub merges: Vec<(usize, usize, usize, usize)>,
+    pub validations: Vec<Vec<Option<ValidationRule>>>,
     engine_idx: usize,
 }
 
@@ -147,6 +182,7 @@ impl SheetModel {
             frozen_rows: 0,
             frozen_cols: 0,
             merges: Vec::new(),
+            validations: vec![vec![None; cols]; rows],
             engine_idx,
         }
     }
@@ -483,14 +519,23 @@ impl TablesWindow {
                 let mut st = s.borrow_mut();
                 let r = st.sheet().selected_row;
                 let c = st.sheet().selected_col;
-                // Update both engine and display cache
+                // Validate
+                let sh = st.sheet();
+                if let Some(rule) = &sh.validations[r][c] {
+                    if !rule.validate(&val) {
+                        let toast = adw::Toast::new("Invalid input — value rejected");
+                        toast.set_timeout(3);
+                        // Toast via overlay (best effort)
+                        return;
+                    }
+                }
+                drop(sh);
                 st.engine.set_cell_text(r, c, &val);
                 {
                     let mut sh = st.sheets[st.active_sheet].borrow_mut();
                     sh.data[r][c] = val.clone();
                     sh.formulas[r][c] = val.starts_with('=');
                 }
-                // Sync engine results back to display
                 st.sheet_mut().sync_from_engine(&st.engine);
                 da.queue_draw();
             });
