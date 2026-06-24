@@ -770,10 +770,11 @@ impl DecksWindow {
             let ss_clone = ss.clone();
             let w_clone = w.clone();
             let path_clone = path_ref.clone();
+            let m_save = masters.clone();
             act_save.connect_activate(move |_, _| {
                 let current_path = path_clone.borrow().clone();
                 if let Some(path_str) = current_path {
-                    let deck = Deck { slides: ss_clone.borrow().clone(), masters: masters.borrow().clone() };
+                    let deck = Deck { slides: ss_clone.borrow().clone(), masters: m_save.borrow().clone() };
                     if let Err(e) = write_pptx(&path_str, &deck) {
                         let err = adw::AlertDialog::builder()
                             .heading("Error saving presentation")
@@ -842,7 +843,7 @@ impl DecksWindow {
             slide_list,
             canvas,
             slides,
-            masters,
+            masters: masters.clone(),
             current_slide,
             selected_object,
             transition,
