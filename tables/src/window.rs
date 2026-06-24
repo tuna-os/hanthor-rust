@@ -29,6 +29,34 @@ const GRID_LINE: (f64, f64, f64) = (0.85, 0.85, 0.85);
 #[derive(Clone, Copy, PartialEq)]
 pub enum SortDirection { Ascending, Descending }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum BorderStyle { None, Solid, Dotted, Dashed, Double }
+
+#[derive(Clone, Debug)]
+pub struct CellBorder {
+    pub top: BorderStyle,
+    pub bottom: BorderStyle,
+    pub left: BorderStyle,
+    pub right: BorderStyle,
+    pub color: (f64, f64, f64),
+}
+
+impl CellBorder {
+    pub fn none() -> Self {
+        Self { top: BorderStyle::None, bottom: BorderStyle::None,
+               left: BorderStyle::None, right: BorderStyle::None,
+               color: (0.0, 0.0, 0.0) }
+    }
+
+    pub fn all(style: BorderStyle, color: (f64, f64, f64)) -> Self {
+        Self { top: style.clone(), bottom: style.clone(), left: style.clone(), right: style, color }
+    }
+
+    pub fn outline(style: BorderStyle, color: (f64, f64, f64)) -> Self {
+        Self { top: style.clone(), bottom: style.clone(), left: style.clone(), right: style, color }
+    }
+}
+
 // ── Column divider hit test ─────────────────────────────────────────
 
 fn hit_col_divider(x: f64, y: f64, scroll_x: f64, sheet: &SheetModel) -> Option<usize> {
@@ -95,6 +123,7 @@ pub struct SheetModel {
     pub formulas: Vec<Vec<bool>>,
     pub formats: Vec<Vec<NumberFormat>>,
     pub sorted_col: Option<(usize, SortDirection)>,
+    pub borders: Vec<Vec<CellBorder>>,
     engine_idx: usize,
 }
 
@@ -109,6 +138,7 @@ impl SheetModel {
             formulas: vec![vec![false; cols]; rows],
             formats: vec![vec![NumberFormat::default(); cols]; rows],
             sorted_col: None,
+            borders: vec![vec![CellBorder::none(); cols]; rows],
             engine_idx,
         }
     }
@@ -175,10 +205,12 @@ impl SheetModel {
         let old_data = self.data.clone();
         let old_formulas = self.formulas.clone();
         let old_formats = self.formats.clone();
+        let old_borders = self.borders.clone();
         for (new_row, &old_row) in indices.iter().enumerate() {
             self.data[new_row] = old_data[old_row].clone();
             self.formulas[new_row] = old_formulas[old_row].clone();
             self.formats[new_row] = old_formats[old_row].clone();
+            self.borders[new_row] = old_borders[old_row].clone();
         }
     }
 
@@ -838,8 +870,30 @@ impl TablesWindow {
             })
         };
 
+        let toggle_border = {
+            let s = state.clone();
+            let da = drawing_area.clone();
+            Box::new(move || {
+                let mut st = s.borrow_mut();
+                let mut sh = st.sheet_mut();
+                let r = sh.selected_row;
+                let c = sh.selected_col;
+                let current = &sh.borders[r][c].top;
+                let next = match current {
+                    BorderStyle::None => BorderStyle::Solid,
+                    BorderStyle::Solid => BorderStyle::Dashed,
+                    BorderStyle::Dashed => BorderStyle::Dotted,
+                    BorderStyle::Dotted => BorderStyle::Double,
+                    BorderStyle::Double => BorderStyle::None,
+                };
+                sh.borders[r][c] = CellBorder::outline(next, (0.0, 0.0, 0.0));
+                da.queue_draw();
+            })
+        };
+
         let extended_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn() + 'static>)> = vec![
             ("format-justify-fill-symbolic", "Toggle Number Format", toggle_format),
+            ("format-text-strikethrough-symbolic", "Toggle Cell Border", toggle_border),
             ("insert-object-symbolic", "Show Bar Chart", show_bar_chart),
             ("insert-image-symbolic", "Show Pie Chart", show_pie_chart),
             ("document-send-symbolic", "Export PDF", export_pdf),
@@ -998,6 +1052,54 @@ impl TablesWindow {
 }
 
 // ── Coordinate conversion ─────────────────────────────────────────────
+
+fn draw_border_edges(cr: &Context, x: f64, y: f64, w: f64, h: f64, border: &CellBorder) {
+    let (r, g, b) = border.color;
+    cr.set_source_rgb(r, g, b);
+    for (style, edge_x, edge_y, edge_w, edge_h) in [
+        (&border.top, x, y, w, 0.0),
+        (&border.bottom, x, y + h, w, 0.0),
+        (&border.left, x, y, 0.0, h),
+        (&border.right, x + w, y, 0.0, h),
+    ] {
+        draw_border_line(cr, style, edge_x, edge_y, edge_w.max(1.0), edge_h.max(1.0));
+    }
+}
+
+fn draw_border_line(cr: &Context, style: &BorderStyle, x: f64, y: f64, w: f64, h: f64) {
+    match style {
+        BorderStyle::None => {},
+        BorderStyle::Solid => {
+            cr.set_line_width(2.0);
+            cr.rectangle(x, y, w, h); cr.stroke().unwrap();
+        }
+        BorderStyle::Dashed => {
+            cr.set_line_width(1.5);
+            cr.set_dash(&[4.0, 2.0], 0.0);
+            cr.rectangle(x, y, w, h); cr.stroke().unwrap();
+            cr.set_dash(&[], 0.0);
+        }
+        BorderStyle::Dotted => {
+            cr.set_line_width(1.5);
+            cr.set_dash(&[2.0, 2.0], 0.0);
+            cr.rectangle(x, y, w, h); cr.stroke().unwrap();
+            cr.set_dash(&[], 0.0);
+        }
+        BorderStyle::Double => {
+            cr.set_line_width(1.0);
+            if w > h {
+                // Horizontal double: draw 2px apart vertically
+                cr.move_to(x, y); cr.line_to(x + w, y);
+                cr.move_to(x, y + 3.0); cr.line_to(x + w, y + 3.0);
+            } else {
+                cr.move_to(x, y); cr.line_to(x, y + h);
+                cr.move_to(x + 3.0, y); cr.line_to(x + 3.0, y + h);
+            }
+            cr.stroke().unwrap();
+        }
+    }
+}
+
 fn xy_to_cell(x: f64, y: f64, scroll_x: f64, sheet: &SheetModel) -> Option<(usize, usize)> {
     if x < ROW_HEADER_WIDTH || y < COL_HEADER_HEIGHT { return None; }
     // Convert x offset into per-column width accumulation
@@ -1122,6 +1224,10 @@ fn draw_grid(cr: &Context, state: &Rc<RefCell<AppState>>, width: f64, height: f6
                 let formatted = sh.formats[row][col].format(val);
                 cr.show_text(&formatted).unwrap();
             }
+
+            // Cell borders (drawn after text, on top of grid lines)
+            let border = &sh.borders[row][col];
+            draw_border_edges(cr, x, y, cw, ROW_HEIGHT, border);
 
             // Grid lines
             cr.set_source_rgb(GRID_LINE.0, GRID_LINE.1, GRID_LINE.2);
