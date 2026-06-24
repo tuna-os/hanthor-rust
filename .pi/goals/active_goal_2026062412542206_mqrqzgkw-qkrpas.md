@@ -5,12 +5,12 @@
   "status": "active",
   "autoContinue": true,
   "usage": {
-    "tokensUsed": 771990,
-    "activeSeconds": 3699
+    "tokensUsed": 785186,
+    "activeSeconds": 5421
   },
   "sisyphus": true,
   "createdAt": "2026-06-24T07:24:22.063Z",
-  "updatedAt": "2026-06-24T08:29:24.832Z",
+  "updatedAt": "2026-06-24T08:58:17.650Z",
   "activePath": ".pi/goals/active_goal_2026062412542206_mqrqzgkw-qkrpas.md",
   "taskList": {
     "tasks": [
@@ -126,8 +126,8 @@ If blocked: If a container-based approach can't provide GTK4 libs for linking, p
 - Status: sisyphus running
 - Auto-continue: on
 - Sisyphus mode: yes (prompt/criteria style)
-- Time spent: 1h01m39s
-- Tokens used: 772K (771,990) tokens
+- Time spent: 1h30m21s
+- Tokens used: 785K (785,186) tokens
 - Verification contract: CI workflow run shows all green. `cargo test --workspace` output shows 40+ tests passing. README badge links to passing workflow.
 ## Tasks
 

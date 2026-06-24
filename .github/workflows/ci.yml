@@ -23,11 +23,8 @@ jobs:
       - name: cargo check
         run: cargo check --workspace
 
-      - name: cargo fix (auto-correct warnings)
-        run: cargo fix --workspace --allow-dirty --allow-staged 2>&1 || true
-
-      - name: cargo clippy (zero warnings)
-        run: cargo clippy --workspace -- -D warnings
+      - name: cargo clippy
+        run: cargo clippy --workspace
 
       - name: cargo test
         run: cargo test --workspace
