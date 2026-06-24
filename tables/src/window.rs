@@ -770,11 +770,12 @@ impl TablesWindow {
         stack.add_titled(&scroll_grid, Some("editor"), "Editor");
         stack.set_visible_child_name("empty");
 
-        // Actions for toolbars
-        let s_bar = state.clone();
-        let show_bar_chart = Box::new({
-            let s = s_bar.clone();
-            move || {
+        // ── Chart dialog ──────────────────────────────────────────────
+        let win_ref = Rc::new(RefCell::new(None::<adw::ApplicationWindow>));
+        let show_chart_dialog = {
+            let wr = win_ref.clone();
+            let s = state.clone();
+            Box::new(move || {
                 let st = s.borrow();
                 let active = st.active_sheet;
                 let sheet = st.sheets[active].borrow();
@@ -788,62 +789,53 @@ impl TablesWindow {
                         data.push((lbl, val));
                     }
                 }
-                if data.is_empty() {
-                    return;
-                }
-                let win = gtk4::Window::builder()
-                    .title("Bar Chart Preview")
-                    .default_width(600)
-                    .default_height(400)
-                    .modal(true)
-                    .build();
-                let surface = crate::charts::render_chart(&data, crate::charts::ChartType::Bar, 600, 400);
-                let drawing_area = gtk4::DrawingArea::new();
-                drawing_area.set_draw_func(move |_, cr, _, _| {
-                    cr.set_source_surface(&surface, 0.0, 0.0).unwrap();
-                    cr.paint().unwrap();
-                });
-                win.set_child(Some(&drawing_area));
-                win.present();
-            }
-        });
+                if data.is_empty() { return; }
 
-        let s_pie = state.clone();
-        let show_pie_chart = Box::new({
-            let s = s_pie.clone();
-            move || {
-                let st = s.borrow();
-                let active = st.active_sheet;
-                let sheet = st.sheets[active].borrow();
-                let col = sheet.selected_col;
-                let mut data = Vec::new();
-                for r in 0..sheet.rows {
-                    let label = sheet.data[r][0].clone();
-                    let val_str = &sheet.data[r][col];
-                    if let Ok(val) = val_str.parse::<f64>() {
-                        let lbl = if label.is_empty() { format!("Row {}", r + 1) } else { label };
-                        data.push((lbl, val));
-                    }
-                }
-                if data.is_empty() {
-                    return;
-                }
-                let win = gtk4::Window::builder()
-                    .title("Pie Chart Preview")
-                    .default_width(600)
-                    .default_height(400)
-                    .modal(true)
+                let dialog = adw::Dialog::builder()
+                    .title("Chart")
+                    .content_width(600)
+                    .content_height(480)
                     .build();
-                let surface = crate::charts::render_chart(&data, crate::charts::ChartType::Pie, 600, 400);
-                let drawing_area = gtk4::DrawingArea::new();
-                drawing_area.set_draw_func(move |_, cr, _, _| {
+
+                let chart_type = Rc::new(Cell::new(crate::charts::ChartType::Bar));
+                let data_rc = Rc::new(data);
+
+                let preview = gtk::DrawingArea::new();
+                preview.set_vexpand(true);
+                preview.set_hexpand(true);
+                let ct = chart_type.clone();
+                let d = data_rc.clone();
+                preview.set_draw_func(move |_, cr, w, h| {
+                    let surface = crate::charts::render_chart(&d, ct.get(), w, h);
                     cr.set_source_surface(&surface, 0.0, 0.0).unwrap();
                     cr.paint().unwrap();
                 });
-                win.set_child(Some(&drawing_area));
-                win.present();
-            }
-        });
+
+                let type_combo = gtk::DropDown::from_strings(&["Bar", "Line", "Pie"]);
+                let ct2 = chart_type.clone();
+                let pv = preview.clone();
+                type_combo.connect_selected_notify(move |dd| {
+                    ct2.set(match dd.selected() {
+                        0 => crate::charts::ChartType::Bar,
+                        1 => crate::charts::ChartType::Line,
+                        _ => crate::charts::ChartType::Pie,
+                    });
+                    pv.queue_draw();
+                });
+
+                let header = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+                header.set_margin_start(12); header.set_margin_end(12); header.set_margin_top(6);
+                header.append(&gtk::Label::new(Some("Type:")));
+                header.append(&type_combo);
+
+                let box_content = gtk::Box::new(gtk::Orientation::Vertical, 6);
+                box_content.append(&header);
+                box_content.append(&preview);
+                dialog.set_child(Some(&box_content));
+                let pw = wr.borrow().clone();
+                dialog.present(pw.as_ref());
+            })
+        };
 
         let s_pdf = state.clone();
         let win_ref = Rc::new(RefCell::new(None));
@@ -954,8 +946,7 @@ impl TablesWindow {
             ("format-justify-fill-symbolic", "Toggle Number Format", toggle_format),
             ("format-text-strikethrough-symbolic", "Toggle Cell Border", toggle_border),
             ("view-grid-symbolic", "Merge Cells", toggle_merge),
-            ("insert-object-symbolic", "Show Bar Chart", show_bar_chart),
-            ("insert-image-symbolic", "Show Pie Chart", show_pie_chart),
+            ("insert-object-symbolic", "Chart", show_chart_dialog),
             ("document-send-symbolic", "Export PDF", export_pdf),
         ];
 

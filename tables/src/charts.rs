@@ -1,6 +1,7 @@
 // charts.rs — Pure Rust chart rendering via Cairo.
 use gtk4::cairo::{Context, Format, ImageSurface};
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ChartType { Bar, Line, Pie }
 
 pub fn render_chart(data: &[(String, f64)], chart_type: ChartType, width: i32, height: i32) -> ImageSurface {
