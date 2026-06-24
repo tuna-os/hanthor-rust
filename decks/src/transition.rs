@@ -86,7 +86,7 @@ impl TransitionState {
 fn render_slide_to_surface(slide: &Slide) -> cairo::ImageSurface {
     let surface = cairo::ImageSurface::create(cairo::Format::ARgb32, 960, 540).unwrap();
     let cr = cairo::Context::new(&surface).unwrap();
-    draw_slide(&cr, 960.0, 540.0, &[slide.clone()], 0, None);
+    draw_slide(&cr, 960.0, 540.0, &[slide.clone()], 0, None, &[]);
     surface.flush();
     surface
 }

@@ -4,7 +4,7 @@
 use gtk4::cairo;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::engine::{Slide, SlideObject};
+use crate::engine::{Slide, SlideObject, MasterSlide};
 
 // ── Image loading with cache ─────────────────────────────────────────
 
@@ -104,6 +104,7 @@ pub fn hit_test_object(objects: &[SlideObject], sx: f64, sy: f64) -> Option<usiz
 pub fn draw_slide(
     cr: &cairo::Context, width: f64, height: f64,
     slides: &[Slide], current_slide: usize, selected: Option<usize>,
+    masters: &[MasterSlide],
 ) {
     cr.set_source_rgb(0.86, 0.86, 0.86);
     cr.paint().unwrap();
@@ -138,6 +139,41 @@ pub fn draw_slide(
     cr.set_line_width(1.0);
     cr.rectangle(ox, oy, slide_w, slide_h);
     cr.stroke().unwrap();
+
+    // Draw master slide shapes (background pattern, logos, headers)
+    if current_slide < slides.len() {
+        if let Some(mi) = slides[current_slide].master_idx {
+            if mi < masters.len() {
+                let master = &masters[mi];
+                for obj in &master.shapes {
+                    cr.save().unwrap();
+                    // Render master shapes with reduced opacity
+                    match obj {
+                        SlideObject::Rect { x, y, w, h } => {
+                            let sx = ox + (x / 960.0) * slide_w;
+                            let sy = oy + (y / 540.0) * slide_h;
+                            let sw = (w / 960.0) * slide_w;
+                            let sh = (h / 540.0) * slide_h;
+                            cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
+                            cr.rectangle(sx, sy, sw, sh);
+                            cr.fill().unwrap();
+                        }
+                        SlideObject::TextBox { text, x, y, .. } => {
+                            let sx = ox + (x / 960.0) * slide_w;
+                            let sy = oy + (y / 540.0) * slide_h;
+                            cr.set_source_rgba(0.3, 0.3, 0.3, 0.4);
+                            cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
+                            cr.set_font_size(11.0);
+                            cr.move_to(sx + 4.0, sy + 14.0);
+                            cr.show_text(text).unwrap();
+                        }
+                        _ => {}
+                    }
+                    cr.restore().unwrap();
+                }
+            }
+        }
+    }
 
     // Draw objects
     if current_slide < slides.len() {

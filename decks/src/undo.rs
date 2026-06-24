@@ -214,7 +214,7 @@ mod tests {
     use suite_common::undo::Command;
 
     fn make_slides() -> Vec<Slide> {
-        vec![Slide { title: "S1".into(), background: "#fff".into(), objects: vec![], notes: String::new() }]
+        vec![Slide { title: "S1".into(), background: "#fff".into(), objects: vec![], notes: String::new(), master_idx: Some(0) }]
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn test_add_slide_undo() {
         let mut slides = make_slides();
-        let new_slide = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        let new_slide = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new(), master_idx: Some(0) };
         let cmd = AddSlideCmd { index: 1, slide: new_slide };
         cmd.apply(&mut slides);
         assert_eq!(slides.len(), 2);
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn test_delete_slide_undo() {
         let mut slides = make_slides();
-        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new(), master_idx: Some(0) };
         slides.push(s2.clone());
         let cmd = DeleteSlideCmd { index: 1, slide: s2 };
         cmd.apply(&mut slides);
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_reorder_slides_undo() {
         let mut slides = make_slides();
-        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new() };
+        let s2 = Slide { title: "S2".into(), background: "#fff".into(), objects: vec![], notes: String::new(), master_idx: Some(0) };
         slides.push(s2);
         let cmd = ReorderSlidesCmd { from: 0, to: 1 };
         cmd.apply(&mut slides);
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_slide_notes_preserved() {
         let slide = Slide { title: "S1".into(), background: "#fff".into(),
-            objects: vec![], notes: "My notes".into() };
+            objects: vec![], notes: "My notes".into(), master_idx: Some(0) };
         assert_eq!(slide.notes, "My notes");
         // Cloning preserves notes
         assert_eq!(slide.clone().notes, "My notes");

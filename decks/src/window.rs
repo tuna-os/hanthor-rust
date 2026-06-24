@@ -17,7 +17,7 @@ use crate::sidebar::rebuild_slide_list;
 use crate::toolbar::{find_toolbar_child, build_decks_toolbar};
 use crate::transition::{TransitionState, TransitionType, draw_transition};
 
-use crate::engine::{Slide, SlideObject, Deck, read_pptx, write_pptx};
+use crate::engine::{Slide, SlideObject, MasterSlide, Deck, read_pptx, write_pptx};
 
 // ── DecksWindow ──────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ pub struct DecksWindow {
     slide_list: gtk::ListBox,
     canvas: gtk::DrawingArea,
     slides: Rc<RefCell<Vec<Slide>>>,
+    masters: Rc<RefCell<Vec<MasterSlide>>>,
     current_slide: Rc<Cell<usize>>,
     selected_object: Rc<Cell<Option<usize>>>,
     transition: Rc<RefCell<TransitionState>>,
@@ -40,6 +41,13 @@ impl DecksWindow {
             background: "#ffffff".into(),
             objects: vec![],
             notes: String::new(),
+            master_idx: Some(0),
+        }]));
+        let masters = Rc::new(RefCell::new(vec![MasterSlide {
+            name: "Default".into(),
+            background: "#ffffff".into(),
+            default_font: "Sans".into(),
+            shapes: vec![],
         }]));
         let current_slide = Rc::new(Cell::new(0usize));
         let selected_object = Rc::new(Cell::new(None));
@@ -58,13 +66,14 @@ impl DecksWindow {
             let c = current_slide.clone();
             let so = selected_object.clone();
             let ts = transition.clone();
+            let m = masters.clone();
             canvas.set_draw_func(move |_area, cr, width, height| {
                 let t = ts.borrow();
                 if draw_transition(cr, &t, width as f64, height as f64) {
                     return; // transition is active, skip normal rendering
                 }
                 drop(t);
-                draw_slide(cr, width as f64, height as f64, &s.borrow(), c.get(), so.get());
+                draw_slide(cr, width as f64, height as f64, &s.borrow(), c.get(), so.get(), &m.borrow());
             });
         }
 
@@ -223,6 +232,7 @@ impl DecksWindow {
                     background: "#ffffff".into(),
                     objects: vec![],
                     notes: String::new(),
+            master_idx: Some(0),
                 };
                 undo.borrow_mut().execute(Box::new(AddSlideCmd {
                     index: idx,
@@ -563,6 +573,7 @@ impl DecksWindow {
             let so = selected_object.clone();
             let undo = undo.clone();
             let ts = transition.clone();
+            let m = masters.clone();
             let key = gtk::EventControllerKey::new();
             key.connect_key_pressed(move |_, keyval, code, mods| {
                 // Ctrl+Z: undo
@@ -674,6 +685,7 @@ impl DecksWindow {
                     background: "#ffffff".into(),
                     objects: vec![],
                     notes: String::new(),
+            master_idx: Some(0),
                 }];
                 *path_ref.borrow_mut() = None;
                 rebuild_slide_list(&sl, &slides, 0);
@@ -832,6 +844,7 @@ impl DecksWindow {
             slide_list,
             canvas,
             slides,
+            masters,
             current_slide,
             selected_object,
             transition,

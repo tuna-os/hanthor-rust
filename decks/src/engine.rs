@@ -12,6 +12,7 @@ use quick_xml::Writer;
 #[derive(Clone, Debug)]
 pub struct Deck {
     pub slides: Vec<Slide>,
+    pub masters: Vec<MasterSlide>,
 }
 
 #[derive(Clone, Debug)]
@@ -20,6 +21,15 @@ pub struct Slide {
     pub background: String,
     pub objects: Vec<SlideObject>,
     pub notes: String,
+    pub master_idx: Option<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct MasterSlide {
+    pub name: String,
+    pub background: String,
+    pub default_font: String,
+    pub shapes: Vec<SlideObject>,
 }
 
 #[derive(Clone, Debug)]
@@ -32,13 +42,21 @@ pub enum SlideObject {
 
 impl Deck {
     pub fn new() -> Self {
+        let default_master = MasterSlide {
+            name: "Default".into(),
+            background: "#ffffff".into(),
+            default_font: "Sans".into(),
+            shapes: vec![],
+        };
         Self {
             slides: vec![Slide {
                 title: "Slide 1".into(),
                 background: "#ffffff".into(),
                 objects: vec![],
                 notes: String::new(),
+                master_idx: Some(0),
             }],
+            masters: vec![default_master],
         }
     }
 }
@@ -478,6 +496,7 @@ pub fn read_pptx(path: &str) -> Result<Deck, String> {
             background: "#ffffff".into(),
             objects,
             notes: String::new(),
+            master_idx: Some(0),
         });
     }
 
@@ -487,6 +506,7 @@ pub fn read_pptx(path: &str) -> Result<Deck, String> {
             background: "#ffffff".into(),
             objects: vec![],
             notes: String::new(),
+            master_idx: Some(0),
         });
     }
 
