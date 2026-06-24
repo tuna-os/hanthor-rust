@@ -33,8 +33,8 @@
 | App | Score | Gaps |
 |-----|-------|------|
 | **Letters** | 16/16 (100%) | — |
-| **Tables** | 15/16 (94%) | No AdwPreferencesDialog, no breakpoint |
-| **Decks** | 15/16 (94%) | No AdwPreferencesDialog |
+| **Tables** | 16/16 (100%) | — |
+| **Decks** | 16/16 (100%) | — |
 
 ---
 
