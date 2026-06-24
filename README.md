@@ -1,5 +1,7 @@
 # GTK Office Suite — GNOME-Native Office Suite in Rust
 
+[![CI](https://github.com/tuna-os/gtk-office-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tuna-os/gtk-office-suite/actions/workflows/ci.yml)
+
 A LibreOffice-inspired office suite written in Rust with GTK4 and libadwaita, shipped as Flatpaks.
 
 **Three apps:** Letters (word processor), Tables (spreadsheet), Decks (presentations).  
