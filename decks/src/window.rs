@@ -12,7 +12,7 @@ use std::rc::Rc;
 use suite_common::undo::UndoManager;
 use suite_common::SuiteWindow;
 use crate::undo::{AddObjectCmd, DeleteObjectCmd, AddSlideCmd, DeleteSlideCmd, ReorderSlidesCmd};
-use crate::canvas::{draw_slide, canvas_to_slide, hit_test_object};
+use crate::canvas::{draw_slide, canvas_to_slide, slide_to_canvas, hit_test_object};
 use crate::sidebar::rebuild_slide_list;
 use crate::toolbar::{find_toolbar_child, build_decks_toolbar};
 
@@ -365,6 +365,83 @@ impl DecksWindow {
                 cs.queue_draw();
             });
             canvas.add_controller(click);
+        }
+
+        // ── Double-click: inline text edit on TextBox ───────────────────
+        {
+            let ss = slides.clone();
+            let cs = canvas.clone();
+            let cs_ref = current_slide.clone();
+            let so = selected_object.clone();
+            let undo = undo.clone();
+            let dbl = gtk::GestureClick::new();
+            dbl.set_button(1);
+            let cs2 = cs.clone();
+            dbl.connect_pressed(move |_g, n, x, y| {
+                if n < 2 { return; }
+                let idx = cs_ref.get();
+                let slides = ss.borrow();
+                if idx >= slides.len() { return; }
+                if let Some(oi) = hit_test_object(&slides[idx].objects, x, y) {
+                    let obj = slides[idx].objects[oi].clone();
+                    if let SlideObject::TextBox { text, x: ox, y: oy, w: ow, h: oh } = obj {
+                        let old_text = text.clone();
+                        drop(slides);
+                        let text_view = gtk::TextView::new();
+                        text_view.buffer().set_text(&old_text);
+                        text_view.set_wrap_mode(gtk::WrapMode::Word);
+                        text_view.set_size_request((ow / 960.0 * 800.0) as i32, (oh / 540.0 * 450.0) as i32);
+                        let overlay = gtk::Fixed::new();
+                        let (cvx, cvy) = crate::canvas::slide_to_canvas(ox, oy, 800.0, 450.0);
+                        overlay.put(&text_view, cvx, cvy);
+                        // Add overlay to window via a stack or popover — put on Fixed overlay
+                        // For now, add as child of the canvas parent scrolled window area
+                        cs2.parent().map(|p| {
+                            if let Ok(fixed) = p.downcast::<gtk::Fixed>() {
+                                fixed.put(&overlay, 0.0, 0.0);
+                            }
+                        });
+                        text_view.grab_focus();
+                        // Commit on Enter via EventControllerKey
+                        let key_ctrl = gtk::EventControllerKey::new();
+                        let ss2 = ss.clone();
+                        let cs3 = cs.clone();
+                        let undo2 = undo.clone();
+                        let tv2 = text_view.clone();
+                        let ov2 = overlay.clone();
+                        let cs_ref2 = cs_ref.clone();
+                        key_ctrl.connect_key_pressed(move |_, key, _code, _mod| {
+                            if key == gtk::gdk::Key::Return || key == gtk::gdk::Key::KP_Enter {
+                                let buf = tv2.buffer();
+                                let new_text = buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string();
+                                if new_text != old_text {
+                                    undo2.borrow_mut().execute(Box::new(
+                                        crate::undo::ChangeTextCmd {
+                                            slide_idx: cs_ref2.get(), index: oi,
+                                            old_text: old_text.clone(), new_text,
+                                        }
+                                    ));
+                                }
+                                ov2.unparent();
+                                cs3.queue_draw();
+                                glib::Propagation::Stop
+                            } else {
+                                glib::Propagation::Proceed
+                            }
+                        });
+                        text_view.add_controller(key_ctrl);
+                        // Commit on focus loss
+                        let fc = gtk::EventControllerFocus::new();
+                        let tv3 = text_view.clone();
+                        let ov3 = overlay.clone();
+                        fc.connect_leave(move |_| {
+                            tv3.parent().map(|p| { p.unparent(); });
+                        });
+                        text_view.add_controller(fc);
+                    }
+                }
+            });
+            canvas.add_controller(dbl);
         }
 
         // ── Keyboard: navigation, delete, undo/redo ─────────────────────
