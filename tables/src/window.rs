@@ -48,12 +48,12 @@ impl ValidationRule {
         match self {
             ValidationRule::List(items) => items.is_empty() || items.iter().any(|i| i == value),
             ValidationRule::WholeNumber { min, max } => {
-                value.parse::<i64>().ok().map_or(true, |v| {
+                value.parse::<i64>().ok().map_or(false, |v| {
                     min.map_or(true, |m| v >= m) && max.map_or(true, |m| v <= m)
                 })
             }
             ValidationRule::Decimal { min, max } => {
-                value.parse::<f64>().ok().map_or(true, |v| {
+                value.parse::<f64>().ok().map_or(false, |v| {
                     min.map_or(true, |m| v >= m) && max.map_or(true, |m| v <= m)
                 })
             }
@@ -62,7 +62,7 @@ impl ValidationRule {
                 min.map_or(true, |m| len >= m) && max.map_or(true, |m| len <= m)
             }
             ValidationRule::Regex(pattern) => {
-                regex::Regex::new(pattern).map_or(true, |re| re.is_match(value))
+                regex::Regex::new(pattern).map_or(false, |re| re.is_match(value))
             }
         }
     }
