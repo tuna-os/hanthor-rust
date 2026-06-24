@@ -2,16 +2,16 @@
   "version": 3,
   "id": "mqrqzgkw-qkrpas",
   "objective": "Set up GitHub CI that runs `cargo test --workspace` and `flatpak-builder` builds on every push, producing a green checkmark that proves all 106+ tests pass across all three apps (Letters, Tables, Decks) and suite-common. Currently tests exist but cannot run locally — CI must provide the GTK4/libadwaita runtime environment.\n\nSuccess criteria:\n- A GitHub Actions workflow that triggers on push/PR to main\n- `cargo test --workspace` passes with all 18+ existing tests green\n- `cargo clippy --workspace` passes with zero new warnings\n- At least one Flatpak manifest builds successfully via flatpak-builder\n- Test coverage expanded: suite-common gets 15+ tests, Tables gets 12+, Decks gets 8+, Letters gets 6+ (currently: suite-common 7, Tables 7, Letters 3, Decks 1)\n- CI badge in README.md shows green\n- No regression: all features implemented in the post-v1.0 session (sort, borders, freeze, merge, formatting, validation, charts, undo, transitions, drag, notes, images) have at least one test exercising them\n\nBoundaries:\n- In scope: CI workflow, additional tests, flatpak build verification, README badge\n- Out of scope: GUI automation tests (Dogtail/AT-SPI), performance benchmarks, cross-platform testing, code coverage metrics\n\nConstraints:\n- CI must run without a self-hosted runner (use containers)\n- Must work on GitHub's ubuntu-latest or container-based runner\n- Flatpak build uses org.gnome.Platform 50 SDK from Flathub\n- Do not modify existing test assertions — tests that already pass must keep passing\n\n\nOrdered steps:\n1. Create .github/workflows/ci.yml with container-based GTK4 environment\n2. Run `cargo test --workspace` on the CI container — fix any test failures\n3. Run `cargo clippy --workspace` — fix all warnings\n4. Add `flatpak-builder` build step — verify at least one manifest builds\n5. Expand test coverage: write tests for suite-common (undo, format, events — target 15+ tests)\n6. Expand test coverage: write tests for Tables (sort, borders, freeze, merge, validation — target 12+ tests)\n7. Expand test coverage: write tests for Decks (undo, transitions, drag — target 8+ tests)\n8. Add CI status badge to README.md\n9. Push and verify CI runs green on GitHub\n\nIf blocked: If a container-based approach can't provide GTK4 libs for linking, pivot to Flatpak SDK approach (`flatpak-builder --run` inside CI). Stop and ask user before switching strategy.",
-  "status": "active",
+  "status": "complete",
   "autoContinue": true,
   "usage": {
-    "tokensUsed": 785186,
-    "activeSeconds": 5421
+    "tokensUsed": 786572,
+    "activeSeconds": 6129
   },
   "sisyphus": true,
   "createdAt": "2026-06-24T07:24:22.063Z",
-  "updatedAt": "2026-06-24T08:58:17.650Z",
-  "activePath": ".pi/goals/active_goal_2026062412542206_mqrqzgkw-qkrpas.md",
+  "updatedAt": "2026-06-24T09:15:15.722Z",
+  "stopReason": "agent",
   "taskList": {
     "tasks": [
       {
@@ -81,7 +81,8 @@
     "blockCompletion": false,
     "proposedAt": "2026-06-24T07:24:22.067Z"
   },
-  "verificationContract": "CI workflow run shows all green. `cargo test --workspace` output shows 40+ tests passing. README badge links to passing workflow."
+  "verificationContract": "CI workflow run shows all green. `cargo test --workspace` output shows 40+ tests passing. README badge links to passing workflow.",
+  "archivedPath": ".pi/goals/archived/goal_2026062414451572_mqrqzgkw-qkrpas.md"
 }
 
 # Goal Prompt
@@ -123,11 +124,11 @@ If blocked: If a container-based approach can't provide GTK4 libs for linking, p
 
 ## Progress
 
-- Status: sisyphus running
+- Status: sisyphus complete
 - Auto-continue: on
 - Sisyphus mode: yes (prompt/criteria style)
-- Time spent: 1h30m21s
-- Tokens used: 785K (785,186) tokens
+- Time spent: 1h42m09s
+- Tokens used: 787K (786,572) tokens
 - Verification contract: CI workflow run shows all green. `cargo test --workspace` output shows 40+ tests passing. README badge links to passing workflow.
 ## Tasks
 
