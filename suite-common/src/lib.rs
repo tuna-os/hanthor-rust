@@ -443,7 +443,7 @@ pub fn make_header_bar() -> adw::HeaderBar {
 pub fn show_shortcuts_dialog(
     shortcuts: &[(&str, &[(&str, &str)])],
 ) {
-    let win = adw::ShortcutsWindow::builder()
+    let win = gtk::ShortcutsWindow::builder()
         .modal(true)
         .build();
 

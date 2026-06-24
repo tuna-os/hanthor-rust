@@ -774,7 +774,7 @@ impl DecksWindow {
             act_save.connect_activate(move |_, _| {
                 let current_path = path_clone.borrow().clone();
                 if let Some(path_str) = current_path {
-                    let deck = Deck { slides: ss_clone.borrow().clone(), masters: vec![] };
+                    let deck = Deck { slides: ss_clone.borrow().clone(), masters: masters.borrow().clone() };
                     if let Err(e) = write_pptx(&path_str, &deck) {
                         let err = adw::AlertDialog::builder()
                             .heading("Error saving presentation")
@@ -804,13 +804,14 @@ impl DecksWindow {
                 let ss = ss.clone();
                 let w2 = w.clone();
                 let path_ref = path_ref.clone();
+                let m = masters.clone();
 
                 dlg.save(Some(&w), None::<&gio::Cancellable>,
                     move |result: Result<gio::File, glib::Error>| {
                         if let Ok(file) = result {
                             if let Some(path) = file.path() {
                                 let path_str = path.to_string_lossy().to_string();
-                                let deck = Deck { slides: ss.borrow().clone(), masters: vec![] };
+                                let deck = Deck { slides: ss.borrow().clone(), masters: m.borrow().clone() };
                                 match write_pptx(&path_str, &deck) {
                                     Ok(()) => {
                                         *path_ref.borrow_mut() = Some(path_str);
