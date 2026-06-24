@@ -213,4 +213,26 @@ mod tests {
         
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn test_document_empty() {
+        let doc = Document::from_text("");
+        assert_eq!(doc.text, "");
+    }
+
+    #[test]
+    fn test_markdown_to_typst_heading_levels() {
+        let md = "# H1\n## H2\n### H3";
+        let typst = markdown_to_typst(md);
+        assert!(typst.contains("= H1"));
+        assert!(typst.contains("== H2"));
+        assert!(typst.contains("=== H3"));
+    }
+
+    #[test]
+    fn test_markdown_to_typst_code() {
+        let md = "Some \n\n```\ncode block\n```";
+        let typst = markdown_to_typst(md);
+        assert!(typst.contains("code block"));
+    }
 }
