@@ -174,7 +174,6 @@ impl DecksWindow {
         let toast_overlay = adw::ToastOverlay::new();
         toast_overlay.set_child(Some(&main_box));
         suite_win.set_content(&toast_overlay);
-        let toast_rc = Rc::new(toast_overlay);
 
         let toolbar = build_decks_toolbar();
         suite_win.add_top_bar(&toolbar);
