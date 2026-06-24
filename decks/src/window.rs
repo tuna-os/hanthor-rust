@@ -289,21 +289,18 @@ impl DecksWindow {
             if let Some(btn) = tb {
                 btn.connect_clicked(move |_| {
                     let idx = cs_ref.get();
-                    let mut slides = ss.borrow_mut();
-                    if idx < slides.len() {
-                        let count = shape_count.get();
-                        shape_count.set(count + 1);
-                        if count % 2 == 0 {
-                            slides[idx].objects.push(SlideObject::Rect {
-                                x: 200.0, y: 200.0, w: 200.0, h: 150.0,
-                            });
-                        } else {
-                            slides[idx].objects.push(SlideObject::Circle {
-                                x: 300.0, y: 250.0, r: 80.0,
-                            });
-                        }
-                        cs.queue_draw();
-                    }
+                    let ss_snap = ss.borrow();
+                    if idx >= ss_snap.len() { return; }
+                    let count = shape_count.get();
+                    shape_count.set(count + 1);
+                    let obj = if count % 2 == 0 {
+                        SlideObject::Rect { x: 200.0, y: 200.0, w: 200.0, h: 150.0 }
+                    } else {
+                        SlideObject::Circle { x: 300.0, y: 250.0, r: 80.0 }
+                    };
+                    drop(ss_snap);
+                    undo.borrow_mut().execute(Box::new(AddObjectCmd::new(idx, obj)));
+                    cs.queue_draw();
                 });
             }
         }
@@ -419,9 +416,11 @@ impl DecksWindow {
                 }
             });
             drag.connect_drag_end(move |_g, dx, dy| {
-                if let Some((oi, _orig_x, _orig_y)) = ds4.get() {
-                    let net_dx = dx as f64;
-                    let net_dy = dy as f64;
+                if let Some((oi, orig_x, orig_y)) = ds4.get() {
+                    let snapped_x = snap_to_grid(orig_x + dx as f64, GRID_SPACING);
+                    let snapped_y = snap_to_grid(orig_y + dy as f64, GRID_SPACING);
+                    let net_dx = snapped_x - orig_x;
+                    let net_dy = snapped_y - orig_y;
                     if net_dx != 0.0 || net_dy != 0.0 {
                         undo.borrow_mut().execute(Box::new(
                             MoveObjectCmd {

@@ -12,6 +12,8 @@ use std::rc::Rc;
 
 use crate::engine::TablesEngine;
 use suite_common::format::{NumberFormat, NumberFormatKind};
+use suite_common::undo::UndoManager;
+use crate::undo::SheetState;
 
 // ── Constants ──────────────────────────────────────────────────────────
 const DEFAULT_ROWS: usize = 100;
@@ -333,7 +335,15 @@ fn load_file_into_engine(path: &str, engine: &mut TablesEngine) -> Result<(usize
             let (rows, cols) = (range.height(), range.width());
             for (r, row) in range.rows().enumerate() {
                 for (c, cell) in row.iter().enumerate() {
-                    let val = format!("{:?}", cell);
+                    let val = match cell {
+                        calamine::Data::String(s) => s.clone(),
+                        calamine::Data::Float(f) => f.to_string(),
+                        calamine::Data::Int(i) => i.to_string(),
+                        calamine::Data::Bool(b) => b.to_string(),
+                        calamine::Data::DateTime(d) => d.to_string(),
+                        calamine::Data::Error(e) => format!("#{}", e),
+                        _ => String::new(),
+                    };
                     engine.set_cell_text(r, c, &val);
                 }
             }
@@ -403,6 +413,7 @@ pub struct TablesWindow {
     v_adj: gtk4::Adjustment,
     fx_entry: gtk4::Entry,
     stack: gtk4::Stack,
+    undo: Rc<RefCell<UndoManager<SheetState>>>,
 }
 
 impl TablesWindow {
@@ -411,11 +422,19 @@ impl TablesWindow {
             .expect("Failed to create spreadsheet engine");
 
         let sheet = SheetModel::new("Sheet1", DEFAULT_ROWS, DEFAULT_COLS, 0);
+        let sheet_clone = sheet.clone();
         let state = Rc::new(RefCell::new(AppState {
             sheets: vec![Rc::new(RefCell::new(sheet))],
             active_sheet: 0,
             engine,
         }));
+
+        // ── Undo manager ─────────────────────────────────────────────
+        let undo_state = Rc::new(RefCell::new(SheetState {
+            sheets: vec![sheet_clone],
+            active_sheet: 0,
+        }));
+        let undo_mgr: Rc<RefCell<UndoManager<SheetState>>> = Rc::new(RefCell::new(UndoManager::new(undo_state)));
 
         // ── Scrolling ──────────────────────────────────────────────────
         let h_adj = gtk4::Adjustment::new(0.0, 0.0, 5000.0, 10.0, 50.0, 500.0);
@@ -1070,9 +1089,20 @@ impl TablesWindow {
         {
             let s = state.clone();
             let da = drawing_area.clone();
+            let u = undo_mgr.clone();
             let key = gtk4::EventControllerKey::new();
-            key.connect_key_pressed(move |_, key, _code, _mod| {
-                if key == gtk::gdk::Key::Delete || key == gtk::gdk::Key::BackSpace {
+            key.connect_key_pressed(move |_, keyval, _code, mods| {
+                if mods.contains(gtk4::gdk::ModifierType::CONTROL_MASK) && keyval == gtk4::gdk::Key::z {
+                    u.borrow_mut().undo();
+                    da.queue_draw();
+                    return gtk4::glib::Propagation::Stop;
+                }
+                if mods.contains(gtk4::gdk::ModifierType::CONTROL_MASK | gtk4::gdk::ModifierType::SHIFT_MASK) && keyval == gtk4::gdk::Key::z {
+                    u.borrow_mut().redo();
+                    da.queue_draw();
+                    return gtk4::glib::Propagation::Stop;
+                }
+                if keyval == gtk::gdk::Key::Delete || keyval == gtk::gdk::Key::BackSpace {
                     let mut st = s.borrow_mut();
                     let r = st.sheet().selected_row;
                     let c = st.sheet().selected_col;
@@ -1086,7 +1116,7 @@ impl TablesWindow {
             drawing_area.add_controller(key);
         }
 
-        Self { window: suite_win.window, drawing_area, h_adj, v_adj, fx_entry, stack }
+        Self { window: suite_win.window, drawing_area, h_adj, v_adj, fx_entry, stack, undo: undo_mgr }
     }
 
     pub fn present(&self) { self.window.present(); }

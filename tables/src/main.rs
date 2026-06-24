@@ -3,6 +3,7 @@ mod engine;
 mod export;
 mod charts;
 mod window;
+mod undo;
 
 fn main() {
     let suite = suite_common::SuiteApp::new("org.tunaos.tables-rust");
