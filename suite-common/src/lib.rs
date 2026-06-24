@@ -12,9 +12,7 @@
 
 pub mod file_dialogs;
 pub mod toast_manager;
-pub mod undo;
-pub mod format;
-pub mod events;
+pub use suite_common_core::{format, undo, events};
 
 pub use file_dialogs::FileDialogHelper;
 pub use toast_manager::ToastManager;

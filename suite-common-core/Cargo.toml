@@ -1,0 +1,12 @@
+[package]
+name = "suite-common-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num-format = "0.4"
+chrono = "0.4"
+
+[lib]
+name = "suite_common_core"
+path = "src/lib.rs"

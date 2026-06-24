@@ -166,6 +166,7 @@ pub fn excel_serial_to_datetime(serial: f64) -> Option<NaiveDateTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_general() {
