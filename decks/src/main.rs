@@ -40,12 +40,24 @@ fn main() {
     suite.app.add_action(&act_shortcuts);
     suite.app.set_accels_for_action("app.show-shortcuts", &["<Primary>question"]);
     let act_prefs = gtk4::gio::SimpleAction::new("preferences", None);
-    act_prefs.connect_activate(|_, _| {
+    let parent_win = std::rc::Rc::new(std::cell::RefCell::new(None::<gtk4::Window>));
+    let pw = parent_win.clone();
+    act_prefs.connect_activate(move |_, _| {
         let settings = gio::Settings::new("org.tunaos.decks-rust");
-        let _p = preferences::DecksPreferences::new(&settings);
+        let prefs_win = preferences::DecksPreferences::new(&settings);
+        libadwaita::prelude::AdwDialogExt::present(&prefs_win.window, pw.borrow().as_ref());
     });
     suite.app.add_action(&act_prefs);
     suite.app.set_accels_for_action("app.preferences", &["<Control>comma"]);
+    // After window creation, store it for preferences
+    let pw_store = parent_win.clone();
+    suite.app.connect_activate(move |app| {
+        let w = window::DecksWindow::new(app);
+        *pw_store.borrow_mut() = Some(w.window.clone().upcast::<gtk4::Window>());
+        w.present();
+    });
+    return;
+
     suite.app.connect_activate(|app| {
         let w = window::DecksWindow::new(app);
         w.present();

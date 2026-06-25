@@ -3,7 +3,7 @@
 
 use suite_common::undo::Command;
 use suite_common::format::NumberFormat;
-use crate::window::{SheetModel, CellBorder};
+use crate::sheet::{SheetModel, CellBorder};
 
 // ── App state wrapper for undo ──────────────────────────────────────────
 // Commands operate on the active sheet within AppState.
@@ -178,7 +178,7 @@ impl Command<SheetState> for FreezeCmd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::window::{SheetModel, CellBorder, BorderStyle};
+    use crate::sheet::{SheetModel, CellBorder, BorderStyle};
     use suite_common::format::{NumberFormat, NumberFormatKind};
 
     fn make_state() -> SheetState {
@@ -290,7 +290,7 @@ mod tests {
     }
 
     // ── Validation rule tests ─────────────────────────────────────
-    use crate::window::ValidationRule;
+    use crate::sheet::ValidationRule;
 
     #[test]
     fn test_validation_list() {

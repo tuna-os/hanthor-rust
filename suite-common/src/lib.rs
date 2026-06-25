@@ -214,14 +214,15 @@ impl SuiteToolbar {
         // ---- Primary section (always visible) ----
         let primary_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         primary_box.add_css_class("linked");
-        for (label, tooltip, cb) in primary {
-            let btn = if label.ends_with("-symbolic") {
+        for (icon_or_label, tooltip, cb) in primary {
+            let btn: gtk::ToggleButton = if icon_or_label.ends_with("-symbolic") {
                 let b = gtk::ToggleButton::new();
-                b.set_icon_name(label);
-                b.set_label(&label.replace("-symbolic", "").replace("format-text-", "").replace("format-justify-", "").replace("format-list-", "").replace("insert-", ""));
+                b.set_icon_name(icon_or_label);
+                // GNOME HIG: symbolic icons with tooltips, NOT text labels
+                b.add_css_class("image-button");
                 b
             } else {
-                gtk::ToggleButton::with_label(label)
+                gtk::ToggleButton::with_label(icon_or_label)
             };
             btn.set_tooltip_text(Some(tooltip));
             let cb = cb;
@@ -235,14 +236,15 @@ impl SuiteToolbar {
         // ---- Extended section + More button ----
         let extended_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         extended_box.add_css_class("linked");
-        for (label, tooltip, cb) in extended {
-            let btn = if label.ends_with("-symbolic") {
+        for (icon_or_label, tooltip, cb) in extended {
+            let btn: gtk::Button = if icon_or_label.ends_with("-symbolic") {
                 let b = gtk::Button::new();
-                b.set_icon_name(label);
-                b.set_label(&label.replace("-symbolic", "").replace("format-text-", "").replace("format-justify-", "").replace("format-list-", "").replace("insert-", ""));
+                b.set_icon_name(icon_or_label);
+                // GNOME HIG: symbolic icons with tooltips, NOT text labels
+                b.add_css_class("image-button");
                 b
             } else {
-                gtk::Button::with_label(label)
+                gtk::Button::with_label(icon_or_label)
             };
             btn.set_tooltip_text(Some(tooltip));
             btn.connect_clicked(move |_| cb());

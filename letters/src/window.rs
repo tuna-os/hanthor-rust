@@ -34,6 +34,10 @@ fn make_doc_widget(settings: Option<&gio::Settings>) -> (PageContainer, gtk::Tex
     editor.set_left_margin(24); editor.set_right_margin(24);
     editor.set_top_margin(16); editor.set_bottom_margin(16);
     editor.set_vexpand(true); editor.set_hexpand(true);
+    // Transparent background so PageContainer's white page shows through (no black block in dark mode)
+    let css_provider = gtk::CssProvider::new();
+    css_provider.load_from_string("textview, textview text, scrolledwindow { background: transparent; }");
+    editor.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
     // Spell-check via zspell (hunspell-compatible, pure Rust).
     // Applies red wavy underline to misspelled words, re-checks on edits.
     let spell_enabled = settings.map(|s| s.boolean("spell-check-enabled")).unwrap_or(true);
@@ -77,6 +81,8 @@ fn make_doc_widget(settings: Option<&gio::Settings>) -> (PageContainer, gtk::Tex
     let scroll = gtk::ScrolledWindow::new();
     scroll.set_child(Some(&editor));
     scroll.set_vexpand(true); scroll.set_hexpand(true);
+    // Transparent background so PageContainer's white page shows through
+    scroll.style_context().add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
     let container = PageContainer::new();
     if let Some(s) = settings {
         container.load_from_settings(s);

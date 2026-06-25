@@ -20,10 +20,15 @@ fn main() {
 
     // Register the "show-preferences" action
     let s = settings.clone();
+    let app_weak = suite.app.downgrade();
     let act_prefs = gtk4::gio::SimpleAction::new("show-preferences", None);
     act_prefs.connect_activate(move |_, _| {
         let prefs_win = preferences::LettersPreferences::new(&s);
-        prefs_win.window.present(Option::<&gtk4::Window>::None);
+        if let Some(app) = app_weak.upgrade() {
+            prefs_win.window.present(app.active_window().as_ref());
+        } else {
+            prefs_win.window.present(Option::<&gtk4::Window>::None);
+        }
     });
     suite.app.add_action(&act_prefs);
 

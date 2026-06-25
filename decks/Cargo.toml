@@ -8,6 +8,9 @@ gtk4 = { version = "0.11", features = ["v4_14"] }
 libadwaita = { version = "0.9", features = ["v1_5"] }
 suite-common = { path = "../suite-common" }
 cairo-rs = { version = "0.22", features = ["png"] }
+pango = { version = "0.22" }
+pangocairo = { version = "0.22" }
+pulldown-cmark = "0.12"
 image = "0.25"
 zip = "2.0"
 quick-xml = "0.31"

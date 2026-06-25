@@ -59,6 +59,7 @@ impl DecksWindow {
         let canvas = gtk::DrawingArea::new();
         canvas.set_vexpand(true);
         canvas.set_hexpand(true);
+        canvas.set_accessible_role(gtk::AccessibleRole::Img);
         canvas.set_content_width(960);
         canvas.set_content_height(540);
         {
@@ -126,7 +127,8 @@ impl DecksWindow {
 
         for btn in [&add_btn, &del_btn, &up_btn, &down_btn] {
             btn.add_css_class("flat");
-            btn.set_has_frame(false);
+            btn.set_has_frame(true);
+            btn.set_size_request(36, 36);
         }
 
         sidebar_controls.append(&add_btn);
