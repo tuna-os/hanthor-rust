@@ -267,25 +267,25 @@ class LettersTest(BaseGUITestCase):
             "Misspelled words like 'wurd' and 'zzzz' have red wavy underlines beneath them",
         ], screenshot_path=self.last_screenshot)
 
-    def test_toggle_dark_mode_changes_background(self):
-        self._click("Toggle Dark Mode")
-        time.sleep(0.5)
+    def test_dark_mode_via_system_theme(self):
+        """Dark mode follows system theme (no toggle button in header bar per GNOME HIG)."""
+        try:
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], timeout=5)
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Could not set dark mode: {e}")
         self.take_screenshot("dark")
         self.assertVision([
             "The application background and editor area are dark colored (dark mode active)",
             "Text and toolbar controls remain readable against the dark background",
         ], screenshot_path=self.last_screenshot)
-
-    def test_toggle_dark_mode_back_to_light(self):
-        btn = self.app.child(name="Toggle Dark Mode", roleName="toggle button")
-        btn.do_action(0)
-        time.sleep(0.3)
-        btn.do_action(0)
-        time.sleep(0.3)
-        self.take_screenshot("light")
-        self.assertVision([
-            "The application background is light colored (dark mode is off)",
-        ], screenshot_path=self.last_screenshot)
+        try:
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "default"], timeout=5)
+            time.sleep(0.3)
+        except:
+            pass
 
     def test_menu_button_shows_file_edit_help(self):
         self._click("Menu", "toggle button")

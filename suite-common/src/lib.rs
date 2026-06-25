@@ -382,21 +382,6 @@ pub fn make_header_bar() -> adw::HeaderBar {
         .build();
     new_btn.add_css_class("flat");
 
-    // ---- End: Dark mode toggle ----
-    let dark_btn = gtk::ToggleButton::builder()
-        .icon_name("night-light-symbolic")
-        .tooltip_text("Toggle Dark Mode")
-        .build();
-    dark_btn.add_css_class("flat");
-    dark_btn.connect_toggled(|btn| {
-        let sm = adw::StyleManager::default();
-        if btn.is_active() {
-            sm.set_color_scheme(adw::ColorScheme::ForceDark);
-        } else {
-            sm.set_color_scheme(adw::ColorScheme::Default);
-        }
-    });
-
     // ---- End: Primary menu ----
     let menu = gio::Menu::new();
 
@@ -428,7 +413,6 @@ pub fn make_header_bar() -> adw::HeaderBar {
     let hb = adw::HeaderBar::new();
     hb.pack_start(&new_btn);
     hb.pack_end(&menu_btn);
-    hb.pack_end(&dark_btn);
     hb
 }
 

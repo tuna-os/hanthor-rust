@@ -103,10 +103,19 @@ class LettersHIGAudit(BaseGUITestCase):
             pass
 
     def _toggle_dark(self):
+        # GNOME HIG: apps respect system theme, no toggle button
+        # Use adw.StyleManager for test purposes
         try:
-            btn = self.app.child(name="Toggle Dark Mode", roleName="toggle button")
-            btn.do_action(0)
-            time.sleep(0.4)
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], timeout=5)
+            time.sleep(0.5)
+        except:
+            pass
+    def _toggle_light(self):
+        try:
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "default"], timeout=5)
+            time.sleep(0.5)
         except:
             pass
 
@@ -261,7 +270,9 @@ class PageRenderingVerification(BaseGUITestCase):
         self.assertVision(["Typed text appears on WHITE page background and is readable"], screenshot_path=self.last_screenshot)
     def test_dark_mode_white_page(self):
         self._new_doc()
-        try: self.app.child(name="Toggle Dark Mode",roleName="toggle button").do_action(0)
+        try:
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], timeout=5)
         except: pass
         time.sleep(0.4)
         self.take_screenshot("vrf_dark_page")

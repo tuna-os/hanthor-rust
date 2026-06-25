@@ -67,10 +67,13 @@ class LettersDarkModeDesignReview(BaseGUITestCase):
             self.app.keyCombo("<Control>n")
         time.sleep(1.0)
 
-        # Toggle dark mode
-        dark_btn = self.app.child(name="Toggle Dark Mode", roleName="toggle button")
-        dark_btn.do_action(0)
-        time.sleep(0.5)
+        # Dark mode follows system theme per GNOME HIG (no toggle button)
+        try:
+            import subprocess
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], timeout=5)
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Could not set dark mode: {e}")
 
         self.take_screenshot("letters_dark_mode_design")
         self.assertVision([
