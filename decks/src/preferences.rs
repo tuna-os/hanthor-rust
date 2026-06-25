@@ -12,7 +12,7 @@ impl DecksPreferences {
         let prefs = suite_common::make_preferences_window();
         let page = suite_common::make_preferences_page("General", "emblem-system-symbolic");
         let group = suite_common::make_preferences_group("Grid", "Canvas snapping");
-        let row = adw::SwitchRow::builder().title("Snap to Grid").active(true).build();
+        let row = adw::SwitchRow::builder().title("Snap to grid").active(true).build();
         group.add(&row);
         page.add(&group);
         prefs.add(&page);

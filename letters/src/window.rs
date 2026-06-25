@@ -228,11 +228,11 @@ impl LettersWindow {
                 let app = app_clone.clone();
                 move || { app.activate_action("highlight", None); }
             })),
-            ("view-list-bullet-symbolic", "Bullet List (<Control><Shift>8)", Box::new({
+            ("view-list-bullet-symbolic", "Bullet list (<Control><Shift>8)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("bullet-list", None); }
             })),
-            ("view-list-ordered-symbolic", "Numbered List (<Control><Shift>7)", Box::new({
+            ("view-list-ordered-symbolic", "Numbered list (<Control><Shift>7)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("numbered-list", None); }
             })),
@@ -252,15 +252,15 @@ impl LettersWindow {
                 let app = app_clone.clone();
                 move || { app.activate_action("align-justify", None); }
             })),
-            ("insert-link-symbolic", "Insert Link (<Control>k)", Box::new({
+            ("insert-link-symbolic", "Insert link (<Control>k)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("insertlink", None); }
             })),
-            ("view-continuous-symbolic", "Line Spacing", Box::new({
+            ("view-continuous-symbolic", "Line spacing", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("cycle-line-spacing", None); }
             })),
-            ("view-dual-symbolic", "Columns (1-3)", Box::new({
+            ("view-dual-symbolic", "Column layout", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("cycle-columns", None); }
             })),

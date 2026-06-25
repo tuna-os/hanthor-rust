@@ -712,9 +712,9 @@ impl TablesWindow {
         };
 
         let extended_toolbar: Vec<(&'static str, &'static str, Box<dyn Fn() + 'static>)> = vec![
-            ("preferences-other-symbolic", "Toggle Number Format", toggle_format),
-            ("format-text-strikethrough-symbolic", "Toggle Cell Border", toggle_border),
-            ("object-group-symbolic", "Merge Cells", toggle_merge),
+            ("preferences-other-symbolic", "Toggle number format", toggle_format),
+            ("format-text-strikethrough-symbolic", "Toggle cell border", toggle_border),
+            ("object-group-symbolic", "Merge cells", toggle_merge),
             ("insert-object-symbolic", "Chart", show_chart_dialog),
             ("document-send-symbolic", "Export PDF", export_pdf),
         ];

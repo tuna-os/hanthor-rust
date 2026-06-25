@@ -12,7 +12,7 @@ impl TablesPreferences {
         let prefs = suite_common::make_preferences_window();
         let page = suite_common::make_preferences_page("General", "emblem-system-symbolic");
         let group = suite_common::make_preferences_group("Grid", "Spreadsheet appearance");
-        let row = adw::SwitchRow::builder().title("Show Gridlines").active(true).build();
+        let row = adw::SwitchRow::builder().title("Show gridlines").active(true).build();
         group.add(&row);
         page.add(&group);
         prefs.add(&page);

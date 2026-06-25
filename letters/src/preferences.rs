@@ -50,7 +50,7 @@ impl LettersPreferences {
 
         let tools_group = suite_common::make_preferences_group("Tools", "Editing tools");
         let spell_row = adw::SwitchRow::builder()
-            .title("Spell Checking")
+            .title("Spell checking")
             .subtitle("Enable built-in spell checking")
             .active(settings.boolean("spell-check-enabled"))
             .build();
@@ -64,7 +64,7 @@ impl LettersPreferences {
         tools_group.add(&spell_row);
 
         let auto_save_row = adw::SpinRow::builder()
-            .title("Auto-Save Interval (s)")
+            .title("Auto-save interval")
             .subtitle("Set to 0 to disable auto-save")
             .adjustment(&gtk4::Adjustment::new(0.0, 0.0, 3600.0, 30.0, 60.0, 0.0))
             .build();
@@ -78,7 +78,7 @@ impl LettersPreferences {
 
         let layout_group = suite_common::make_preferences_group("Layout", "Window layout");
         let toolbar_row = adw::SwitchRow::builder()
-            .title("Show Toolbar")
+            .title("Show toolbar")
             .subtitle("Show the formatting toolbar")
             .active(true)
             .build();

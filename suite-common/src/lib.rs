@@ -389,9 +389,9 @@ pub fn make_header_bar() -> adw::HeaderBar {
     file_section.append(Some("_New"), Some("app.new"));
     file_section.append(Some("_Open\u{2026}"), Some("app.open"));
     file_section.append(Some("_Save"), Some("app.save"));
-    file_section.append(Some("Save _As\u{2026}"), Some("app.save-as"));
-    file_section.append(Some("Page Set_up\u{2026}"), Some("app.page-setup"));
-    file_section.append(Some("Print Pre_view\u{2026}"), Some("app.print-preview"));
+    file_section.append(Some("Save _as\u{2026}"), Some("app.save-as"));
+    file_section.append(Some("Page set_up\u{2026}"), Some("app.page-setup"));
+    file_section.append(Some("Print pre_view\u{2026}"), Some("app.print-preview"));
     file_section.append(Some("_Print\u{2026}"), Some("app.print"));
     menu.append_section(Some("File"), &file_section);
 
@@ -400,7 +400,7 @@ pub fn make_header_bar() -> adw::HeaderBar {
     menu.append_section(Some("Edit"), &edit_section);
 
     let help_section = gio::Menu::new();
-    help_section.append(Some("_Keyboard Shortcuts"), Some("app.shortcuts"));
+    help_section.append(Some("_Keyboard shortcuts"), Some("app.shortcuts"));
     help_section.append(Some("_About"), Some("app.about"));
     menu.append_section(Some("Help"), &help_section);
 
