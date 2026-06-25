@@ -117,13 +117,13 @@ impl DecksWindow {
         sidebar_controls.set_margin_bottom(6);
 
         let add_btn = gtk::Button::builder()
-            .icon_name("list-add-symbolic").tooltip_text("Add Slide").build();
+            .icon_name("list-add-symbolic").tooltip_text("Add slide").build();
         let del_btn = gtk::Button::builder()
-            .icon_name("list-remove-symbolic").tooltip_text("Delete Slide").build();
+            .icon_name("list-remove-symbolic").tooltip_text("Delete slide").build();
         let up_btn = gtk::Button::builder()
-            .icon_name("go-up-symbolic").tooltip_text("Move Up").build();
+            .icon_name("go-up-symbolic").tooltip_text("Move up").build();
         let down_btn = gtk::Button::builder()
-            .icon_name("go-down-symbolic").tooltip_text("Move Down").build();
+            .icon_name("go-down-symbolic").tooltip_text("Move down").build();
 
         for btn in [&add_btn, &del_btn, &up_btn, &down_btn] {
             btn.add_css_class("flat");

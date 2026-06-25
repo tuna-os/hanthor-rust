@@ -40,17 +40,17 @@ pub fn build_decks_toolbar() -> gtk::Box {
     toolbar.append(&sep);
 
     let text_box = gtk::Button::builder()
-        .icon_name("insert-text-symbolic").tooltip_text("Add Text Box").build();
+        .icon_name("insert-text-symbolic").tooltip_text("Add text box").build();
     text_box.add_css_class("flat");
     toolbar.append(&text_box);
 
     let shape = gtk::Button::builder()
-        .icon_name("insert-object-symbolic").tooltip_text("Add Shape (Rect/Circle)").build();
+        .icon_name("insert-object-symbolic").tooltip_text("Add shape").build();
     shape.add_css_class("flat");
     toolbar.append(&shape);
 
     let image = gtk::Button::builder()
-        .icon_name("insert-image-symbolic").tooltip_text("Add Image").build();
+        .icon_name("insert-image-symbolic").tooltip_text("Add image").build();
     image.add_css_class("flat");
     toolbar.append(&image);
 

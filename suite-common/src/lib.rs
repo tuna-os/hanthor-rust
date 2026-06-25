@@ -169,8 +169,8 @@ fn show_about_dialog() {
     about.set_developer_name("Hanthor Contributors");
     about.set_license_type(gtk::License::Gpl30);
     about.set_comments("A GNOME-native office suite written in Rust.");
-    about.set_website("https://github.com/tuna-os/hanthor-rust");
-    about.set_issue_url("https://github.com/tuna-os/hanthor-rust/issues");
+    about.set_website("https://github.com/tuna-os/gtk-office-suite");
+    about.set_issue_url("https://github.com/tuna-os/gtk-office-suite/issues");
     about.present(gtk::Window::NONE);
 }
 

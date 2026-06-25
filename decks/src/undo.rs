@@ -148,7 +148,7 @@ impl Command<Vec<Slide>> for ChangeTextCmd {
             }
         }
     }
-    fn description(&self) -> &str { "Edit Text" }
+    fn description(&self) -> &str { "Edit text" }
 }
 
 pub struct AddSlideCmd {
@@ -167,7 +167,7 @@ impl Command<Vec<Slide>> for AddSlideCmd {
             slides.remove(self.index);
         }
     }
-    fn description(&self) -> &str { "Add Slide" }
+    fn description(&self) -> &str { "Add slide" }
 }
 
 pub struct DeleteSlideCmd {
@@ -186,7 +186,7 @@ impl Command<Vec<Slide>> for DeleteSlideCmd {
             slides.insert(self.index, self.slide.clone());
         }
     }
-    fn description(&self) -> &str { "Delete Slide" }
+    fn description(&self) -> &str { "Delete slide" }
 }
 
 pub struct ReorderSlidesCmd {

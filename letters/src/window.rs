@@ -236,15 +236,15 @@ impl LettersWindow {
                 let app = app_clone.clone();
                 move || { app.activate_action("numbered-list", None); }
             })),
-            ("format-justify-left-symbolic", "Align Left (<Control>l)", Box::new({
+            ("format-justify-left-symbolic", "Align left (<Control>l)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("align-left", None); }
             })),
-            ("format-justify-center-symbolic", "Align Center (<Control>e)", Box::new({
+            ("format-justify-center-symbolic", "Align center (<Control>e)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("align-center", None); }
             })),
-            ("format-justify-right-symbolic", "Align Right (<Control>r)", Box::new({
+            ("format-justify-right-symbolic", "Align right (<Control>r)", Box::new({
                 let app = app_clone.clone();
                 move || { app.activate_action("align-right", None); }
             })),
@@ -366,7 +366,7 @@ impl LettersWindow {
                 dialog.set_close_response("cancel");
                 dialog.set_default_response(Some("save"));
                 dialog.set_response_appearance("save", adw::ResponseAppearance::Suggested);
-                dialog.set_response_appearance("cancel", adw::ResponseAppearance::Destructive);
+                dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
                 dialog.choose(None::<&gtk::Window>, None::<&gio::Cancellable>,
                     move |response: glib::GString| {
                         match response.as_str() {
@@ -439,14 +439,19 @@ impl LettersWindow {
 
         // ── Find/Replace revealer ──────────────────────────────────
         let (find_revealer, find_entry) = make_find_replace_widget(&tab_view);
-        suite_win.add_top_bar(&find_revealer);
+        find_revealer.set_key_capture_widget(Some(&suite_win.window));
+        // Place search bar as overlay on content (not as stacked top bar)
+        let content_overlay = gtk::Overlay::new();
+        content_overlay.set_child(Some(&toast_overlay));
+        content_overlay.add_overlay(&find_revealer);
+        suite_win.set_content(&content_overlay);
 
         // ── Find/Replace actions ────────────────────────────────────
         let fe = find_entry.clone();
         let fr = find_revealer.clone();
         let a = gtk::gio::SimpleAction::new("find", None);
         a.connect_activate(move |_, _| {
-            fr.set_reveal_child(true);
+            fr.set_search_mode(true);
             fe.grab_focus();
         });
         app.add_action(&a);
@@ -1252,8 +1257,9 @@ struct FindState {
     current: usize,
 }
 
-/// Build the find/replace revealer that slides down from the top.
-fn make_find_replace_widget(tv: &adw::TabView) -> (gtk::Revealer, gtk::SearchEntry) {
+/// Build the find/replace search bar that overlays the content area.
+/// Uses GtkSearchBar per GNOME HIG (not a stacked bar).
+fn make_find_replace_widget(tv: &adw::TabView) -> (gtk::SearchBar, gtk::SearchEntry) {
     let tv = tv.clone();
 
     let search_entry = gtk::SearchEntry::new();
@@ -1455,8 +1461,6 @@ fn make_find_replace_widget(tv: &adw::TabView) -> (gtk::Revealer, gtk::SearchEnt
     }
 
     // ── Close button ─────────────────────────────────────────
-    let rev = Rc::new(RefCell::new(None::<gtk::Revealer>));
-
     // ── Layout ───────────────────────────────────────────────
     let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     hbox.set_margin_start(6);
@@ -1473,30 +1477,28 @@ fn make_find_replace_widget(tv: &adw::TabView) -> (gtk::Revealer, gtk::SearchEnt
     hbox.append(&case_toggle);
     hbox.append(&close_btn);
 
-    let revealer = gtk::Revealer::new();
-    revealer.set_child(Some(&hbox));
-    revealer.set_transition_type(gtk::RevealerTransitionType::SlideDown);
-    revealer.set_reveal_child(false);
+    let search_bar = gtk::SearchBar::new();
+    search_bar.set_child(Some(&hbox));
+    search_bar.set_search_mode(false);
+    search_bar.set_show_close_button(false);
+    search_bar.connect_entry(&search_entry);
 
-    // Wire close (after revealer is created)
+    // Wire close button
     {
-        let rev = rev.clone();
-        let r2 = revealer.clone();
+        let sb = search_bar.clone();
         close_btn.connect_clicked(move |_| {
-            r2.set_reveal_child(false);
+            sb.set_search_mode(false);
         });
     }
 
-    // Escape in search entry closes
+    // Enter in search field = find next
     {
-        let r = revealer.clone();
         search_entry.connect_activate(move |_| {
-            // Enter in search = find next
             find_next.activate();
         });
     }
 
-    (revealer, search_entry)
+    (search_bar, search_entry)
 }
 
 /// Scroll the active text view so the cursor is visible.
